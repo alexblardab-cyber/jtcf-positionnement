@@ -723,19 +723,33 @@ function soumettre() {
 
   const texteComplet = lignes.join('\n');
 
-  // Construire le lien mailto (fallback si pas de backend)
-  const sujet = encodeURIComponent(`[JTCF] Test de positionnement — ${selectedFormation.nom} — ${prenom} ${nom}`);
-  const corps = encodeURIComponent(texteComplet);
-  const mailtoLink = `mailto:contact@tbrgroup.fr?subject=${sujet}&body=${corps}`;
+  // Envoi direct vers Google Apps Script
+  const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwygeSX0ODaTqqcq9S_emCqj6xCwGhYlct1m96x6UjR-c7d08e2fi1GtLGTs_nKoFtZdg/exec";
 
-  // Ouvrir le client mail
-  window.location.href = mailtoLink;
+  const payload = {
+    formation : selectedFormation.nom,
+    nom       : nom,
+    prenom    : prenom,
+    ddn       : document.getElementById('ddn').value || '',
+    tel       : document.getElementById('tel').value || '',
+    email     : document.getElementById('email').value || '',
+    niveau    : document.getElementById('niveau').value || '',
+    reponses  : texteComplet
+  };
 
-  // Afficher la confirmation
+  // Afficher la confirmation immédiatement
   document.getElementById('successNom').textContent = `${prenom} ${nom}`;
   document.getElementById('successFormation').textContent = selectedFormation.nom;
   showScreen('screenSucces');
   setStep(3);
+
+  // Envoi en arrière-plan
+  fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(err => console.log('Erreur envoi:', err));
 }
 
 // ══════════════════════════════════════════════
