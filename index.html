@@ -400,7 +400,7 @@
       <p>Merci <strong id="successNom"></strong>.<br>
       Votre test de positionnement pour la formation <strong id="successFormation"></strong> a bien été transmis à l'équipe JTCF.<br><br>
       Votre conseiller(ère) analysera vos réponses et vous contactera prochainement.<br><br>
-      <em style="color:var(--grey);font-size:12px;">Une copie a été envoyée à contact@tbrgoup.fr</em></p>
+      <em style="color:var(--grey);font-size:12px;">Une copie a été envoyée à contact@tbrgroup.fr</em></p>
     </div>
   </div>
   <div class="btn-row" style="justify-content:center;">
@@ -726,7 +726,7 @@ function soumettre() {
   // Construire le lien mailto (fallback si pas de backend)
   const sujet = encodeURIComponent(`[JTCF] Test de positionnement — ${selectedFormation.nom} — ${prenom} ${nom}`);
   const corps = encodeURIComponent(texteComplet);
-  const mailtoLink = `mailto:contact@tbrgoup.fr?subject=${sujet}&body=${corps}`;
+  const mailtoLink = `mailto:contact@tbrgroup.fr?subject=${sujet}&body=${corps}`;
 
   // Ouvrir le client mail
   window.location.href = mailtoLink;
