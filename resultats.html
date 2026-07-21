@@ -524,10 +524,10 @@ function initiales(nom, prenom) {
 function extraireReponses(texte) {
   // Extraire uniquement les lignes de réponses (→) par type de question
   const lignes = texte.split('\n');
-  const reponses = { QCM: [], OPEN: [], SITUATION: [], CALCUL: [], all: [] };
+  const reponses = { QCM: [], OPEN: [], SITUATION: [], CALCUL: [], LOGIQUE: [], COMPREHENSION: [], all: [] };
   let typeActuel = '';
   for (const ligne of lignes) {
-    const mType = ligne.match(/\[(QCM|OPEN|SITUATION|CALCUL)\]/);
+    const mType = ligne.match(/\[(QCM|OPEN|SITUATION|CALCUL|LOGIQUE|COMPREHENSION)\]/);
     if (mType) typeActuel = mType[1];
     if (ligne.startsWith('→')) {
       const rep = ligne.replace('→', '').trim();
@@ -536,6 +536,20 @@ function extraireReponses(texte) {
     }
   }
   return reponses;
+}
+
+// ── ÉVALUATION LOGIQUE (Q26-Q27, Partie 5) ───────────────────
+// Bonnes réponses attendues, dans l'ordre des questions LOGIQUE
+const BONNES_REPONSES_LOGIQUE = ['64', 'école'];
+
+function evaluerLogique(reps) {
+  const n = reps.LOGIQUE.length;
+  let ok = 0;
+  reps.LOGIQUE.forEach((rep, i) => {
+    const attendu = BONNES_REPONSES_LOGIQUE[i];
+    if (attendu && rep.toLowerCase().includes(attendu)) ok++;
+  });
+  return { n, ok };
 }
 
 function scoreLocal(r) {
@@ -552,8 +566,9 @@ function scoreLocal(r) {
 
   // Texte des réponses UNIQUEMENT (pas les questions)
   const texteReps    = reps.all.join(' ').toLowerCase();
-  const texteOpen    = [...reps.OPEN, ...reps.SITUATION].join(' ').toLowerCase();
+  const texteOpen    = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].join(' ').toLowerCase();
   const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
+  const logique      = evaluerLogique(reps);
 
   // ── Signaux positifs (dans les réponses uniquement) ───────
   const signesMotivation = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
@@ -562,7 +577,7 @@ function scoreLocal(r) {
 
   // ── Signaux négatifs ──────────────────────────────────────
   const sanRepNb    = reps.all.filter(r => r.includes('Sans réponse') || r === '').length;
-  const repcourtes  = [...reps.OPEN, ...reps.SITUATION].filter(r => r.split(/\s+/).length < 5).length;
+  const repcourtes  = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].filter(r => r.split(/\s+/).length < 5).length;
   const repDerisoires = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
 
   // ── Score composite ───────────────────────────────────────
@@ -582,6 +597,10 @@ function scoreLocal(r) {
   score -= Math.min(sanRepNb, 3);         // réponses manquantes
   score -= Math.min(repcourtes, 3);       // réponses trop courtes aux questions ouvertes
   score -= repDerisoires.length * 2;      // réponses dérisoires ou inappropriées
+
+  // Logique (Q26-Q27) : +1 par bonne réponse, -1 si tout est faux
+  score += logique.ok;
+  if (logique.n >= 2 && logique.ok === 0) score -= 1;
 
   return score;
 }
@@ -772,7 +791,10 @@ function dessinerRadar(r) {
   const nMots = texte.split(' ').length;
   const connaissances = Math.min(100, pct);
   const communication = Math.min(100, nMots > 300 ? 75 : nMots > 150 ? 55 : 35);
-  const logique = Math.min(100, pct * 1.1);
+  // Axe Logique : basé sur les vraies réponses Q26-Q27 si présentes, sinon estimation via QCM
+  const repsRadar = extraireReponses(texte);
+  const logEval   = evaluerLogique(repsRadar);
+  const logique   = logEval.n >= 2 ? Math.round((logEval.ok / 2) * 100) : Math.min(100, pct * 1.1);
   const motivation = texte.toLowerCase().includes('passion') || texte.toLowerCase().includes('souhait') ? 80 : 60;
   const posture = texte.length > 200 ? 70 : 45;
 
@@ -813,14 +835,15 @@ async function analyserAvecIA(r) {
   const reps         = extraireReponses(texte);
   const pct          = parseInt(r.scorePct) || 0;
   const texteReps    = reps.all.join(' ').toLowerCase();
-  const texteOpen    = [...reps.OPEN, ...reps.SITUATION].join(' ').toLowerCase();
+  const texteOpen    = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].join(' ').toLowerCase();
   const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
+  const logique      = evaluerLogique(reps);
 
   const signesMotivation  = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
   const signesPosture     = ['écoute','empathie','bienveillant','professionnel','organisé','équipe','discret','confidentiel','adaptable','posture','valoriser','soutenir','orienter'].filter(m => texteReps.includes(m));
   const signesMetier      = ['entretien','diagnostic','parcours','bénéficiaire','dispositif','compétence','cv','emploi durable','contrat','mission','accompagnement individualisé','plan d\'action'].filter(m => texteReps.includes(m));
   const sanRepNb          = reps.all.filter(rep => rep.includes('Sans réponse') || rep === '').length;
-  const repcourtes        = [...reps.OPEN, ...reps.SITUATION].filter(rep => rep.split(/\s+/).length < 5).length;
+  const repcourtes        = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].filter(rep => rep.split(/\s+/).length < 5).length;
   const repDerisoires     = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
 
   // ── Score composite ───────────────────────────────────────
@@ -833,6 +856,8 @@ async function analyserAvecIA(r) {
   score -= Math.min(sanRepNb, 3);
   score -= Math.min(repcourtes, 3);
   score -= repDerisoires.length * 2;
+  score += logique.ok;
+  if (logique.n >= 2 && logique.ok === 0) score -= 1;
 
   // ── Recommandation (seuils calibrés) ─────────────────────
   let reco, recoLabel, recoColor;
@@ -859,6 +884,10 @@ async function analyserAvecIA(r) {
       pointsForts.push('Notions du métier présentes, à approfondir.');
     if (nMotsOpen > 200)
       pointsForts.push('Réponses développées témoignant d\'un investissement sérieux dans la démarche.');
+    if (logique.ok === 2)
+      pointsForts.push('Raisonnement logique validé (2/2 aux questions de logique).');
+    else if (logique.ok === 1)
+      pointsForts.push('Raisonnement logique partiellement acquis (1/2 aux questions de logique).');
   }
   if (!pointsForts.length)
     pointsForts.push('Démarche de formation engagée, motivations à explorer en entretien.');
@@ -877,6 +906,8 @@ async function analyserAvecIA(r) {
     vigilance.push('Connaissance du métier à consolider avant l\'entrée en formation.');
   if (pct > 0 && pct < 40)
     vigilance.push('Score QCM faible : vérifier les prérequis de base en entretien.');
+  if (logique.n >= 2 && logique.ok === 0)
+    vigilance.push('Les deux questions de logique sont échouées : capacités de raisonnement à vérifier en entretien.');
   if (score < 2)
     vigilance.push('L\'ensemble du dossier ne permet pas de valider l\'adéquation au poste.');
   if (!vigilance.length)
@@ -914,7 +945,7 @@ function afficherReponses(r) {
     } else if (ligne.startsWith('→') && questionCourante) {
       const typeMatch = questionCourante.match(/\[(\w+)\]/);
       const type = typeMatch ? typeMatch[1] : '';
-      if (type === 'SITUATION' || type === 'OPEN' || type === 'CALCUL') {
+      if (type === 'SITUATION' || type === 'OPEN' || type === 'CALCUL' || type === 'LOGIQUE' || type === 'COMPREHENSION') {
         html += `<div class="reponse-item">
           <div class="reponse-q">${questionCourante.replace(/Q\d+ \[\w+\] : /, '')}</div>
           <div class="reponse-r">${ligne.replace('→','').trim() || '<em>Sans réponse</em>'}</div>

@@ -174,6 +174,29 @@
   .badge-open     { background: #F0FDF4; color: #166534; }
   .badge-situation{ background: #FFF7ED; color: #9A3412; }
   .badge-calcul   { background: #FAF5FF; color: #6B21A8; }
+  .badge-logique  { background: #FDF2F8; color: #9D174D; }
+  .badge-comp     { background: #ECFEFF; color: #155E75; }
+
+  /* ── TEXTE DE LECTURE (compréhension) ── */
+  .texte-lecture {
+    background: #F8FAFC;
+    border: 1.5px solid #CBD5E1;
+    border-left: 4px solid var(--gold);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--grey2);
+    text-align: justify;
+  }
+  .texte-lecture .titre-lecture {
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 6px;
+    font-size: 13px;
+    text-align: left;
+  }
 
   /* ── QCM OPTIONS ── */
   .options { display: flex; flex-direction: column; gap: 8px; }
@@ -380,7 +403,7 @@
     <div class="progress-bar-wrap">
       <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
     </div>
-    <div class="progress-label" id="progressLabel">Question 0 / 25</div>
+    <div class="progress-label" id="progressLabel">Question 0 / 30</div>
   </div>
 
   <div id="questionsContainer"></div>
@@ -555,6 +578,180 @@ function getQuestionsGeneriques(formation) {
 }
 
 // ══════════════════════════════════════════════
+// PARTIE 5 : LOGIQUE & COMPRÉHENSION ÉCRITE (Q26-Q30)
+// ══════════════════════════════════════════════
+
+// Q26-Q27 : questions de logique communes à toutes les formations
+const LOGIQUE_QUESTIONS = [
+  {type:"logique", texte:"Trouvez le nombre manquant dans la suite logique : 2 — 4 — 8 — 16 — 32 — ?", options:["48","64","56","40"]},
+  {type:"logique", texte:"Complétez l'analogie : Médecin est à Hôpital ce que Enseignant est à …", options:["Mairie","École","Tribunal","Entreprise"]},
+];
+
+// Q28-Q30 : texte de compréhension + 3 questions, spécifiques à chaque formation
+const COMPREHENSION_TEXTES = {
+  EC: {
+    titre: "L'employé(e) commercial(e) en grande distribution",
+    texte: "L'employé(e) commercial(e) est un acteur essentiel du commerce de détail. Sa mission principale consiste à garantir la disponibilité et la présentation optimale des produits en rayon. Il ou elle assure la mise en rayon, le facing, le contrôle des dates de péremption et la rotation des stocks. En contact direct avec la clientèle, il ou elle renseigne et oriente les clients dans leurs achats. La rigueur, le sens du service et la capacité à travailler en équipe sont des qualités indispensables pour exercer ce métier. L'employé(e) commercial(e) peut évoluer vers des postes de chef de rayon ou de manager de proximité.",
+    questions: [
+      "Quelle est la mission principale de l'employé(e) commercial(e) selon le texte ?",
+      "Citez deux qualités mentionnées dans le texte comme indispensables pour ce métier.",
+      "Vers quels postes l'employé(e) commercial(e) peut-il/elle évoluer ?"
+    ]
+  },
+  CV: {
+    titre: "Le rôle du conseiller(ère) de vente",
+    texte: "Le conseiller(ère) de vente est un professionnel du commerce dont le rôle dépasse la simple transaction commerciale. Il ou elle accompagne le client dans son parcours d'achat en identifiant ses besoins, en argumentant sur les caractéristiques et bénéfices des produits, et en proposant des solutions adaptées. La méthode CAB (Caractéristiques, Avantages, Bénéfices) est un outil fondamental dans sa pratique quotidienne. Le conseiller(ère) de vente contribue également à la fidélisation de la clientèle et à l'atteinte des objectifs commerciaux de la structure. Une bonne connaissance des produits, une écoute active et un sens aigu du relationnel sont des atouts majeurs dans ce métier.",
+    questions: [
+      "Qu'est-ce que la méthode CAB mentionnée dans le texte ?",
+      "Quel est le rôle du conseiller(ère) de vente au-delà de la vente selon le texte ?",
+      "Citez trois qualités ou compétences clés évoquées dans le texte."
+    ]
+  },
+  AC: {
+    titre: "L'assistant(e) commercial(e) : pivot de la relation client",
+    texte: "L'assistant(e) commercial(e) joue un rôle central dans la gestion de la relation client et le soutien à l'équipe commerciale. Il ou elle traite les commandes, suit les livraisons, gère les réclamations et assure la communication entre les clients et les commerciaux terrain. La maîtrise des outils bureautiques (Word, Excel, CRM) est indispensable. L'assistant(e) commercial(e) contribue également à la préparation des offres commerciales, à la mise à jour des bases de données clients et au suivi des indicateurs de performance. Polyvalence, organisation et réactivité sont les maîtres-mots de cette fonction.",
+    questions: [
+      "Quel est le rôle principal de l'assistant(e) commercial(e) selon le texte ?",
+      "Quels outils bureautiques sont mentionnés comme indispensables ?",
+      "Citez trois qualités nécessaires pour exercer ce métier selon le texte."
+    ]
+  },
+  REM: {
+    titre: "Le responsable d'établissements marchands : manager et stratège",
+    texte: "Le responsable d'établissements marchands assure la gestion globale d'un point de vente. Il ou elle est garant(e) des résultats commerciaux, de la qualité de l'accueil client, de la gestion des stocks et de l'animation de son équipe. Sa mission combine des compétences managériales, commerciales et organisationnelles. Il ou elle analyse les indicateurs de performance (chiffre d'affaires, marge, panier moyen) pour prendre des décisions stratégiques adaptées. Le responsable doit également veiller au respect des réglementations en vigueur et assurer la formation continue de ses collaborateurs. Leadership et vision d'ensemble sont des qualités essentielles à ce poste.",
+    questions: [
+      "Quels types de compétences combine le responsable d'établissements marchands ?",
+      "Citez deux indicateurs de performance mentionnés dans le texte.",
+      "Quelles sont les deux qualités essentielles mentionnées en conclusion ?"
+    ]
+  },
+  MEM: {
+    titre: "Le manager d'établissements marchands : leadership et performance",
+    texte: "Le manager d'établissements marchands est responsable de la performance globale de son unité commerciale. Il ou elle encadre et motive une équipe, définit les priorités opérationnelles et veille à l'atteinte des objectifs fixés par la direction. Sa capacité à déléguer, à communiquer clairement et à résoudre les conflits est déterminante. Le manager analyse régulièrement les résultats commerciaux et met en place des plans d'action correctifs. Il ou elle représente également l'interface entre la direction et les équipes de terrain, assurant la transmission des orientations stratégiques. L'adaptabilité et la posture de coach sont des atouts indispensables à ce niveau de responsabilité.",
+    questions: [
+      "Quel est le rôle du manager entre la direction et les équipes selon le texte ?",
+      "Quelles compétences relationnelles sont soulignées dans le texte ?",
+      "Que fait le manager face à des résultats insuffisants selon le texte ?"
+    ]
+  },
+  SAMA: {
+    titre: "Le/La secrétaire médico-administratif(ve) : confidentialité et organisation",
+    texte: "Le ou la secrétaire médico-administratif(ve) est un maillon essentiel du fonctionnement des structures de soins. Il ou elle assure l'accueil physique et téléphonique des patients, la gestion des rendez-vous, la saisie et le suivi des dossiers médicaux. La maîtrise du vocabulaire médical et des logiciels de gestion de cabinet est indispensable. La confidentialité est une obligation déontologique absolue dans l'exercice de ce métier : les informations médicales des patients sont protégées par le secret professionnel. Organisation, rigueur et bienveillance sont les piliers de cette profession au service de la santé.",
+    questions: [
+      "Quelles sont les missions principales du/de la secrétaire médico-administratif(ve) selon le texte ?",
+      "Pourquoi la confidentialité est-elle une obligation absolue dans ce métier ?",
+      "Citez trois qualités essentielles mentionnées dans le texte."
+    ]
+  },
+  CAGA: {
+    titre: "Le/La chargé(e) d'accueil et de gestion administrative",
+    texte: "Le ou la chargé(e) d'accueil et de gestion administrative est le premier contact d'une organisation avec ses usagers, clients ou partenaires. Il ou elle assure l'accueil physique et téléphonique, oriente les visiteurs, gère le courrier entrant et sortant, et effectue diverses tâches administratives (saisie, classement, archivage). La maîtrise des outils bureautiques est fondamentale. Dans certaines structures, il ou elle peut également gérer des agendas, préparer des réunions ou suivre des dossiers spécifiques. La qualité de l'accueil reflète directement l'image de la structure. Sens du service, discrétion et polyvalence sont les atouts majeurs de ce profil.",
+    questions: [
+      "Quel rôle joue le/la chargé(e) d'accueil dans l'image de la structure ?",
+      "Listez trois tâches administratives mentionnées dans le texte.",
+      "Quels sont les trois atouts majeurs de ce profil selon le texte ?"
+    ]
+  },
+  ACA: {
+    titre: "L'assistant(e) comptabilité-administration : rigueur et fiabilité",
+    texte: "L'assistant(e) en comptabilité et administration contribue à la gestion financière et administrative de l'entreprise. Il ou elle saisit les écritures comptables, suit les factures clients et fournisseurs, prépare les déclarations fiscales courantes et participe aux opérations de clôture. La rigueur et la précision sont des qualités primordiales : une erreur comptable peut avoir des conséquences importantes sur les états financiers. L'assistant(e) travaille en étroite collaboration avec le responsable comptable ou l'expert-comptable. La maîtrise des logiciels comptables (Sage, EBP, Ciel) et d'Excel est aujourd'hui incontournable dans ce métier.",
+    questions: [
+      "Quelles sont les tâches principales de l'assistant(e) comptabilité selon le texte ?",
+      "Pourquoi la rigueur est-elle particulièrement importante dans ce métier ?",
+      "Quels logiciels sont mentionnés comme incontournables ?"
+    ]
+  },
+  AD: {
+    titre: "L'assistant(e) de direction : bras droit du manager",
+    texte: "L'assistant(e) de direction est le collaborateur ou la collaboratrice de confiance d'un dirigeant ou d'un cadre supérieur. Il ou elle gère l'agenda, organise les déplacements, rédige les comptes-rendus de réunion, prépare les dossiers et assure le filtrage des communications. Sa discrétion est absolue : il ou elle est souvent au cœur d'informations stratégiques confidentielles. L'assistant(e) de direction doit faire preuve d'une grande autonomie et d'une capacité à anticiper les besoins de son responsable. Excellente maîtrise du français écrit, sens de l'organisation et diplomatie sont des compétences incontournables pour réussir dans ce rôle exigeant.",
+    questions: [
+      "Quelles sont les principales missions de l'assistant(e) de direction selon le texte ?",
+      "Pourquoi la discrétion est-elle particulièrement importante dans ce poste ?",
+      "Citez trois compétences incontournables pour réussir dans ce rôle."
+    ]
+  },
+  ARH: {
+    titre: "L'assistant(e) ressources humaines : au service des collaborateurs",
+    texte: "L'assistant(e) ressources humaines (ARH) intervient dans la gestion administrative du personnel. Il ou elle participe au processus de recrutement (rédaction d'offres, tri des CV, organisation des entretiens), gère les dossiers individuels des salariés, suit les absences et les congés, et contribue à l'élaboration de la paie. L'ARH est également impliqué(e) dans la formation professionnelle et le suivi des obligations légales de l'employeur. La confidentialité des données personnelles des salariés est une obligation stricte, encadrée par le RGPD. Sens de l'écoute, organisation et connaissance du droit social sont des atouts essentiels dans cette fonction.",
+    questions: [
+      "Quelles sont les missions principales de l'assistant(e) RH selon le texte ?",
+      "Quelle réglementation encadre la confidentialité des données des salariés ?",
+      "Citez trois qualités ou compétences essentielles mentionnées dans le texte."
+    ]
+  },
+  CIP: {
+    titre: "Le conseiller(ère) en insertion professionnelle : accompagner vers l'emploi",
+    texte: "Le conseiller(ère) en insertion professionnelle (CIP) accompagne des personnes en difficulté dans la construction ou la reconstruction de leur parcours professionnel. Son intervention repose sur une posture d'écoute active et de bienveillance. Il ou elle réalise des diagnostics de situation, co-construit des plans d'action avec les bénéficiaires et mobilise les dispositifs d'aide à l'emploi adaptés (France Travail, LADOM, Cap Emploi, etc.). Le CIP travaille en réseau avec les employeurs, les organismes de formation et les partenaires institutionnels. La capacité à gérer l'urgence, à maintenir une posture professionnelle face à des situations complexes, et à préserver la confidentialité des informations sont des exigences fondamentales de ce métier.",
+    questions: [
+      "Sur quelle posture repose l'intervention du CIP selon le texte ?",
+      "Avec quels acteurs le CIP travaille-t-il en réseau ?",
+      "Citez deux exigences fondamentales du métier mentionnées dans le texte."
+    ]
+  },
+  AMIS: {
+    titre: "L'agent de médiation, information et services : lien social et proximité",
+    texte: "L'agent de médiation, information et services (AMIS) est un professionnel de proximité dont la mission est de faciliter les relations entre les usagers et les institutions ou services publics. Il ou elle informe, oriente et accompagne les personnes dans leurs démarches quotidiennes (accès aux droits, services administratifs, vie de quartier). La médiation sociale implique une capacité à gérer les conflits de façon non violente, à maintenir une neutralité bienveillante et à adapter sa communication à des publics très divers. L'AMIS joue un rôle de décodeur entre les logiques institutionnelles et les réalités vécues par les habitants. Empathie, patience et résistance au stress sont des qualités indispensables.",
+    questions: [
+      "Quelle est la mission principale de l'AMIS selon le texte ?",
+      "Que signifie « maintenir une neutralité bienveillante » dans ce contexte ?",
+      "Citez trois qualités indispensables mentionnées dans le texte."
+    ]
+  },
+  ADVF: {
+    titre: "L'assistant(e) de vie aux familles : présence et bienveillance",
+    texte: "L'assistant(e) de vie aux familles (ADVF) intervient au domicile de personnes âgées, en situation de handicap ou de familles ayant besoin de soutien. Ses missions incluent l'aide aux actes essentiels de la vie quotidienne (toilette, repas, mobilité), l'entretien du cadre de vie et un soutien moral à travers la relation d'aide. L'ADVF doit faire preuve d'une grande discrétion, car il ou elle intervient dans la sphère privée des personnes. La relation de confiance est au cœur de ce métier : la personne aidée doit se sentir respectée dans son domicile et son intimité. Patience, empathie et sens des responsabilités sont des valeurs fondamentales pour exercer cette profession.",
+    questions: [
+      "Quelles sont les missions principales de l'ADVF selon le texte ?",
+      "Pourquoi la discrétion est-elle particulièrement importante dans ce métier ?",
+      "Qu'est-ce qui est au cœur de ce métier selon le texte, et pourquoi ?"
+    ]
+  },
+  RCSD: {
+    titre: "Le/La responsable coordinateur(trice) de services à domicile",
+    texte: "Le ou la responsable coordinateur(trice) de services à domicile organise et supervise les interventions des équipes auprès des bénéficiaires à domicile. Il ou elle assure la planification des interventions, le recrutement et l'encadrement des intervenants, et veille à la qualité des prestations. La coordination implique une gestion rigoureuse des plannings, une communication fluide avec les familles et les partenaires de santé, et une réactivité face aux situations d'urgence. Ce poste nécessite des compétences managériales, une bonne connaissance du cadre légal des services à la personne, et une capacité à maintenir une vision humaine au cœur d'une gestion opérationnelle complexe.",
+    questions: [
+      "Quelles sont les responsabilités principales du/de la coordinateur(trice) selon le texte ?",
+      "Quelles compétences sont nécessaires pour ce poste selon le texte ?",
+      "Comment le texte décrit-il la tension entre gestion opérationnelle et dimension humaine ?"
+    ]
+  },
+  CATL: {
+    titre: "Le/La chargé(e) d'accueil touristique et de loisirs",
+    texte: "Le ou la chargé(e) d'accueil touristique et de loisirs est le premier ambassadeur d'une destination ou d'un équipement de loisirs. Il ou elle accueille les visiteurs, les informe sur les offres touristiques locales, gère les réservations et contribue à la promotion du territoire. À La Réunion, la richesse du patrimoine naturel et culturel offre un cadre exceptionnel pour ce métier. La maîtrise de plusieurs langues, notamment l'anglais, est un atout considérable pour accueillir une clientèle internationale. Ce professionnel doit également savoir gérer les situations délicates (réclamations, demandes d'urgence) avec calme et professionnalisme. Sens de l'accueil, dynamisme et connaissance du territoire sont des compétences clés.",
+    questions: [
+      "Quel est le rôle du/de la chargé(e) d'accueil touristique selon le texte ?",
+      "Pourquoi la maîtrise de l'anglais est-elle un atout pour ce métier ?",
+      "Citez trois compétences clés mentionnées dans le texte."
+    ]
+  },
+  GAT: {
+    titre: "Le guide accompagnateur touristique : passeur de culture et de nature",
+    texte: "Le guide accompagnateur touristique conduit et accompagne des groupes lors de visites ou d'excursions. À La Réunion, son rôle est particulièrement riche : il ou elle fait découvrir les merveilles naturelles (volcans, cirques, forêts) et le patrimoine culturel créole de l'île. Au-delà du commentaire guidé, le guide assure la sécurité du groupe, adapte son discours à des publics variés et gère les imprévus avec sang-froid. Une excellente connaissance du territoire, de bonnes aptitudes physiques pour les randonnées et une passion communicative sont des atouts indispensables. Le guide représente à la fois l'image de la destination et un vecteur d'éducation au respect de l'environnement.",
+    questions: [
+      "Quelles sont les missions du guide accompagnateur selon le texte ?",
+      "Quels atouts sont mentionnés comme indispensables pour ce métier ?",
+      "Quel double rôle le guide joue-t-il selon la conclusion du texte ?"
+    ]
+  },
+};
+
+// Assemble les 5 questions de la Partie 5 pour une formation donnée
+function getQuestionsPartie5(formationId) {
+  const comp = COMPREHENSION_TEXTES[formationId];
+  const qs = LOGIQUE_QUESTIONS.map(q => ({ ...q }));
+  if (comp) {
+    comp.questions.forEach((texteQ, idx) => {
+      qs.push({
+        type: "comprehension",
+        texte: texteQ,
+        intro: idx === 0 ? { titre: comp.titre, texte: comp.texte } : null
+      });
+    });
+  }
+  return qs;
+}
+
+// ══════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════
 let selectedFormation = null;
@@ -614,8 +811,9 @@ function demarrerTest() {
     return;
   }
 
-  // Récupérer les questions
-  currentQuestions = QUESTIONS[selectedFormation.id] || getQuestionsGeneriques(selectedFormation);
+  // Récupérer les questions (25 de base + 5 de logique & compréhension)
+  const base = QUESTIONS[selectedFormation.id] || getQuestionsGeneriques(selectedFormation);
+  currentQuestions = [...base, ...getQuestionsPartie5(selectedFormation.id)];
   reponses = {};
 
   // Afficher le questionnaire
@@ -630,10 +828,12 @@ function demarrerTest() {
 // RENDU DES QUESTIONS
 // ══════════════════════════════════════════════
 const SECTION_LABELS = {
-  qcm:       { label:"QCM", badge:"badge-qcm",       icon:"📌" },
-  open:      { label:"Question ouverte", badge:"badge-open",     icon:"✏️" },
-  situation: { label:"Mise en situation", badge:"badge-situation",icon:"🎭" },
-  calcul:    { label:"Calcul / Logique", badge:"badge-calcul",   icon:"🔢" },
+  qcm:          { label:"QCM", badge:"badge-qcm",       icon:"📌" },
+  open:         { label:"Question ouverte", badge:"badge-open",     icon:"✏️" },
+  situation:    { label:"Mise en situation", badge:"badge-situation",icon:"🎭" },
+  calcul:       { label:"Calcul / Logique", badge:"badge-calcul",   icon:"🔢" },
+  logique:      { label:"Logique", badge:"badge-logique",  icon:"🧩" },
+  comprehension:{ label:"Compréhension écrite", badge:"badge-comp", icon:"📖" },
 };
 
 function renderQuestions() {
@@ -641,7 +841,14 @@ function renderQuestions() {
   container.innerHTML = '';
 
   let lastType = null;
-  const typeGroups = { qcm:"PARTIE 1 — QCM", open:"PARTIE 2 — Questions ouvertes", situation:"PARTIE 3 — Mises en situation", calcul:"PARTIE 4 — Calcul & Logique" };
+  const typeGroups = {
+    qcm:          "PARTIE 1 — QCM",
+    open:         "PARTIE 2 — Questions ouvertes",
+    situation:    "PARTIE 3 — Mises en situation",
+    calcul:       "PARTIE 4 — Calcul & Logique",
+    logique:      "PARTIE 5 — Logique & Compréhension écrite",
+    comprehension:"Compréhension écrite — Lisez le texte puis répondez",
+  };
 
   currentQuestions.forEach((q, i) => {
     // Banner de section
@@ -655,6 +862,14 @@ function renderQuestions() {
 
     const block = document.createElement('div');
     block.className = 'card question-block';
+
+    // Texte de lecture (compréhension écrite)
+    if (q.intro) {
+      const lecture = document.createElement('div');
+      lecture.className = 'texte-lecture';
+      lecture.innerHTML = `<div class="titre-lecture">📖 ${q.intro.titre}</div>${q.intro.texte}`;
+      block.appendChild(lecture);
+    }
 
     const num = document.createElement('div');
     num.className = 'q-num';
@@ -672,7 +887,7 @@ function renderQuestions() {
     block.appendChild(badge);
     block.appendChild(texte);
 
-    if (q.type === 'qcm') {
+    if (q.type === 'qcm' || q.type === 'logique') {
       const opts = document.createElement('div');
       opts.className = 'options';
       q.options.forEach((opt, j) => {
@@ -692,6 +907,8 @@ function renderQuestions() {
       const ta = document.createElement('textarea');
       ta.placeholder = q.type === 'calcul'
         ? 'Posez votre calcul et indiquez votre résultat…'
+        : q.type === 'comprehension'
+        ? 'Répondez en vous basant uniquement sur le texte ci-dessus…'
         : 'Répondez librement en quelques lignes…';
       ta.rows = q.type === 'situation' ? 5 : 4;
       ta.addEventListener('input', () => {
