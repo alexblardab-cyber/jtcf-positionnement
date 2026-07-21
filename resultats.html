@@ -350,7 +350,8 @@ function normaliserResultat(r, index) {
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
-const CODE_VALIDE = 'JTCF2026';
+const CODE_VALIDE = 'JTCF2026';       // Code affiché à l'écran (simplifié)
+const CODE_SCRIPT = 'JTCF-ADMIN-2026'; // Code envoyé à Apps Script
 
 function seConnecter() {
   const code = document.getElementById('codeAcces').value.trim();
@@ -366,26 +367,25 @@ function seConnecter() {
 
 // ── CHARGEMENT ────────────────────────────────────────────────
 async function chargerResultats() {
+  const afficher = (resultats) => {
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenAdmin').style.display = 'block';
+    tousResultats = resultats;
+    peuplerFiltreFormation();
+    filtrer();
+  };
   try {
-    const url = SCRIPT_URL + '?action=list&code=' + encodeURIComponent(CODE_ACCES);
+    // On envoie le code Apps Script (pas le code simplifié affiché à l'écran)
+    const url = SCRIPT_URL + '?action=list&code=' + encodeURIComponent(CODE_SCRIPT);
     const r = await fetch(url);
     const data = await r.json();
-    if (data.status === 'ERREUR') {
-      // Code Apps Script incorrect → on charge quand même les données
-      // (la vérification locale a déjà eu lieu)
+    if (data.status === 'ERREUR' || !data.resultats) {
+      afficher(donneesDEMO());
+      return;
     }
-    document.getElementById('screenLogin').style.display = 'none';
-    document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = (data.resultats || []).map(normaliserResultat);
-    peuplerFiltreFormation();
-    filtrer();
+    afficher((data.resultats || []).map(normaliserResultat));
   } catch(e) {
-    // Apps Script inaccessible → données réelles via Apps Script direct
-    document.getElementById('screenLogin').style.display = 'none';
-    document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = donneesDEMO();
-    peuplerFiltreFormation();
-    filtrer();
+    afficher(donneesDEMO());
   }
 }
 
