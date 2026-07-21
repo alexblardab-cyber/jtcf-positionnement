@@ -195,9 +195,6 @@
 
   <div class="filtres">
     <span class="filtre-label">Filtrer</span>
-    <select class="filtre-select" id="filtreTP" onchange="filtrer()">
-      <option value="">Tous les TP</option>
-    </select>
     <select class="filtre-select" id="filtreFormation" onchange="filtrer()">
       <option value="">Toutes les formations</option>
     </select>
@@ -261,37 +258,64 @@ let resultatsAffiches = [];
 let candidatCourant = null;
 let radarInstance = null;
 
-// ── CORRECTEUR DE CHAMPS ──────────────────────────────────────
-// Détecte si un champ ressemble à un numéro de téléphone
-function estTelephone(val) {
-  if (!val) return false;
-  const v = String(val).trim().replace(/[\s\-\.]/g, '');
-  return /^(\+262|0\d{9}|\d{10})$/.test(v);
-}
+// ── NORMALISATION DES DONNÉES ────────────────────────────────
+// Colonnes Google Sheet : A=Date, B=Formation, C=Nom, D=Prénom,
+//                         E=DDN, F=Téléphone, G=Email, H=Niveau, I=Réponses
+function normaliserResultat(r, index) {
+  // Cas 1 : Apps Script renvoie un tableau (row values)
+  if (Array.isArray(r)) {
+    return {
+      id:        index + 1,
+      date:      String(r[0] || ''),
+      formation: String(r[1] || ''),
+      nom:       String(r[2] || ''),
+      prenom:    String(r[3] || ''),
+      ddn:       String(r[4] || ''),
+      tel:       String(r[5] || ''),
+      email:     String(r[6] || ''),
+      niveau:    String(r[7] || ''),
+      reponses:  String(r[8] || ''),
+      scoreQCM:  String(r[9] || ''),
+      scorePct:  String(r[10] || ''),
+      heure:     String(r[11] || ''),
+    };
+  }
 
-// Corrige les données si nom/prénom contiennent des numéros de téléphone
-function normaliserResultat(r) {
-  const n = Object.assign({}, r);
-  // Si le nom ressemble à un téléphone, probablement inversion de colonnes
-  if (estTelephone(n.nom)) {
-    // Chercher un champ texte qui pourrait être le nom
-    const candidatNom = [n.prenom, n.email, n.tel].find(v => v && !estTelephone(v) && !String(v).includes('@'));
-    const candidatTel = n.nom;
-    if (candidatNom) {
-      // Le vrai nom est dans prenom, l'actuel "nom" est le téléphone
-      n.tel = n.tel || candidatTel;
-      n.nom = n.prenom || '—';
-      n.prenom = '';
-    }
+  // Cas 2 : Apps Script renvoie un objet avec des noms de colonnes lettres (A, B, C…)
+  if (r.A !== undefined) {
+    return {
+      id:        r.id || index + 1,
+      date:      String(r.A || ''),
+      formation: String(r.B || ''),
+      nom:       String(r.C || ''),
+      prenom:    String(r.D || ''),
+      ddn:       String(r.E || ''),
+      tel:       String(r.F || ''),
+      email:     String(r.G || ''),
+      niveau:    String(r.H || ''),
+      reponses:  String(r.I || ''),
+      scoreQCM:  String(r.J || r.scoreQCM || ''),
+      scorePct:  String(r.K || r.scorePct || ''),
+      heure:     String(r.L || r.heure || ''),
+    };
   }
-  // Si prenom ressemble à un téléphone
-  if (estTelephone(n.prenom)) {
-    n.tel = n.tel || n.prenom;
-    n.prenom = '';
-  }
-  // Fallback : si nom vide après correction
-  if (!n.nom || n.nom === '—') n.nom = '(Nom manquant)';
-  return n;
+
+  // Cas 3 : objet déjà correctement nommé — passage direct
+  return {
+    id:        r.id || index + 1,
+    date:      String(r.date      || r.Date      || ''),
+    formation: String(r.formation || r.Formation || ''),
+    nom:       String(r.nom       || r.Nom       || ''),
+    prenom:    String(r.prenom    || r.Prenom    || r.Prénom || ''),
+    ddn:       String(r.ddn       || r.DDN       || r.Ddn   || ''),
+    tel:       String(r.tel       || r.Tel       || r.Telephone || r.Téléphone || ''),
+    email:     String(r.email     || r.Email     || ''),
+    niveau:    String(r.niveau    || r.Niveau    || ''),
+    reponses:  String(r.reponses  || r.Reponses  || r.Réponses || ''),
+    scoreQCM:  String(r.scoreQCM  || r.ScoreQCM  || ''),
+    scorePct:  String(r.scorePct  || r.ScorePct  || ''),
+    heure:     String(r.heure     || r.Heure     || ''),
+  };
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
@@ -316,53 +340,33 @@ async function chargerResultats() {
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
     tousResultats = (data.resultats || []).map(normaliserResultat);
-    peuplerFiltres();
+    peuplerFiltreFormation();
     filtrer();
   } catch(e) {
     // Si Apps Script pas encore redéployé, utiliser données démo
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = donneesDEMO().map(normaliserResultat);
-    peuplerFiltres();
+    tousResultats = donneesDEMO();
+    peuplerFiltreFormation();
     filtrer();
   }
 }
 
-function peuplerFiltres() {
-  // Filtre TP (Titre Professionnel — code court)
-  const selTP = document.getElementById('filtreTP');
-  selTP.innerHTML = '<option value="">Tous les TP</option>';
-  const tpKnown = ['EC','CV','ACA','AD','CIP','MHR','TH','TRNQL'];
-  const tpPresents = [...new Set(tousResultats.map(r => r.formationId).filter(Boolean))].sort();
-  // Afficher d'abord les TP connus dans l'ordre habituel, puis les autres
-  const tpOrdonnes = [
-    ...tpKnown.filter(t => tpPresents.includes(t)),
-    ...tpPresents.filter(t => !tpKnown.includes(t))
-  ];
-  tpOrdonnes.forEach(tp => {
-    const opt = document.createElement('option');
-    opt.value = tp; opt.textContent = tp;
-    selTP.appendChild(opt);
-  });
-
-  // Filtre formation (nom complet)
-  const selF = document.getElementById('filtreFormation');
-  selF.innerHTML = '<option value="">Toutes les formations</option>';
+function peuplerFiltreFormation() {
+  const sel = document.getElementById('filtreFormation');
   const formations = [...new Set(tousResultats.map(r => r.formation))].sort();
   formations.forEach(f => {
     const opt = document.createElement('option');
     opt.value = f; opt.textContent = f;
-    selF.appendChild(opt);
+    sel.appendChild(opt);
   });
 }
 
 function filtrer() {
-  const tp   = document.getElementById('filtreTP').value;
   const form = document.getElementById('filtreFormation').value;
   const jours = parseInt(document.getElementById('filtrePeriode').value) || 0;
   resultatsAffiches = tousResultats.filter(r => {
-    if (tp   && r.formationId !== tp)   return false;
-    if (form && r.formation  !== form)  return false;
+    if (form && r.formation !== form) return false;
     if (jours) {
       const d = parseDate(r.date);
       if (!d) return true;
@@ -427,15 +431,13 @@ function afficherListe() {
     const card = document.createElement('div');
     card.className = 'candidat-card';
     card.onclick = () => ouvrirModal(r);
-    // Construire le libellé formation avec code TP si disponible
-    const labelFormation = r.formationId ? `${r.formationId} · ${r.formation}` : r.formation;
     card.innerHTML = `
       ${r.scoreQCM ? `<div class="score-badge ${sc}">${r.scoreQCM} · ${pct}</div>` : ''}
       <div class="candidat-header">
-        <div class="candidat-avatar">${ini || '?'}</div>
+        <div class="candidat-avatar">${ini}</div>
         <div>
-          <div class="candidat-nom">${r.prenom ? r.prenom + ' ' + r.nom : r.nom}</div>
-          <div class="candidat-form">${labelFormation}</div>
+          <div class="candidat-nom">${r.prenom} ${r.nom}</div>
+          <div class="candidat-form">${r.formation}</div>
           <div class="candidat-date">📅 ${r.date} ${r.heure ? '· '+r.heure : ''}</div>
         </div>
       </div>
@@ -448,9 +450,8 @@ function afficherListe() {
 async function ouvrirModal(r) {
   candidatCourant = r;
   document.getElementById('modalOverlay').classList.add('open');
-  const nomComplet = r.prenom ? r.prenom + ' ' + r.nom : r.nom;
-  document.getElementById('modalTitre').textContent = nomComplet;
-  document.getElementById('modalSous').textContent = r.formation + (r.formationId ? ' (' + r.formationId + ')' : '') + ' · ' + r.date;
+  document.getElementById('modalTitre').textContent = r.prenom + ' ' + r.nom;
+  document.getElementById('modalSous').textContent = r.formation + ' · ' + r.date;
 
   // Infos
   document.getElementById('modalInfos').innerHTML = `
@@ -459,7 +460,7 @@ async function ouvrirModal(r) {
     <div class="info-item"><div class="info-lbl">Email</div><div class="info-val">${r.email||'—'}</div></div>
     <div class="info-item"><div class="info-lbl">Niveau</div><div class="info-val">${r.niveau||'—'}</div></div>
     <div class="info-item"><div class="info-lbl">Score QCM</div><div class="info-val">${r.scoreQCM||'—'} (${r.scorePct||'—'})</div></div>
-    <div class="info-item"><div class="info-lbl">Formation visée</div><div class="info-val">${r.formation}${r.formationId ? ' <span style="color:var(--or);font-weight:800">' + r.formationId + '</span>' : ''}</div></div>`;
+    <div class="info-item"><div class="info-lbl">Formation visée</div><div class="info-val">${r.formation}</div></div>`;
 
   // Radar
   dessinerRadar(r);
@@ -619,12 +620,11 @@ async function genererPDF() {
   doc.text('TEST DE POSITIONNEMENT — ' + r.formation.toUpperCase(), 20, 30);
 
   // Infos candidat
-  const nomComplet = r.prenom ? r.prenom + ' ' + r.nom : r.nom;
   doc.setFillColor(245,247,250); doc.rect(15,40,180,38,'F');
   doc.setTextColor(...BF); doc.setFontSize(14); doc.setFont('helvetica','bold');
-  doc.text(nomComplet, 20, 52);
+  doc.text(r.prenom + ' ' + r.nom, 20, 52);
   doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS);
-  doc.text('Formation : ' + r.formation + (r.formationId ? ' (' + r.formationId + ')' : ''), 20, 59);
+  doc.text('Formation : ' + r.formation, 20, 59);
   doc.text('Date : ' + r.date + '   ·   Niveau : ' + (r.niveau||'—'), 20, 65);
   doc.text('Tél : ' + (r.tel||'—') + '   ·   Email : ' + (r.email||'—'), 20, 71);
 
@@ -653,7 +653,7 @@ async function genererPDF() {
   doc.text('JTCF · 20a rue du Général Lambert · 97480 Saint-Joseph · contact@tbrgroup.fr', 20, 291);
   doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 190, 291, {align:'right'});
 
-  doc.save('JTCF_Positionnement_' + (r.prenom||'') + '_' + r.nom + '.pdf');
+  doc.save('JTCF_Positionnement_' + r.prenom + '_' + r.nom + '.pdf');
 }
 
 // ── DONNÉES DÉMO (si Apps Script pas encore redéployé) ────────
@@ -667,10 +667,6 @@ function donneesDEMO() {
       nom:'Martin', prenom:'Kevin', ddn:'20/09/1998', tel:'0693 456 789', email:'kevin.martin@email.re',
       niveau:'CAP', scoreQCM:'4/10', scorePct:'40%',
       reponses: 'FORMATION : Employé(e) Commercial(e)\nCANDIDAT : Kevin Martin\n---\nQ1 [QCM] : Qu\'est-ce que la mise en rayon ?\n→ Ranger les produits en réserve\nQ11 [OPEN] : Pourquoi souhaitez-vous vous former ?\n→ Parce que je cherche du travail et que c\'est une formation disponible.\nQ18 [SITUATION] : Un client signale un écart de prix...\n→ Je le dirige vers la caisse.' },
-    { id:3, date:'15/07/2026', heure:'10:00', formation:'Assistant(e) de Comptabilité et d\'Administration', formationId:'ACA',
-      nom:'Grondin', prenom:'Sarah', ddn:'02/11/2001', tel:'0692 789 012', email:'sarah.grondin@email.re',
-      niveau:'Bac+2', scoreQCM:'9/10', scorePct:'90%',
-      reponses: 'FORMATION : ACA\nCANDIDAT : Sarah Grondin\n---\nQ11 [OPEN] : Pourquoi cette formation ?\n→ Je souhaite me spécialiser en comptabilité après mon BTS gestion PME.' },
   ];
 }
 </script>
