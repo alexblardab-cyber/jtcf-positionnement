@@ -507,16 +507,43 @@ function initiales(nom, prenom) {
   return ((prenom||'')[0]||'') + ((nom||'')[0]||'');
 }
 
+function scoreLocal(r) {
+  let texte = r.reponses || '';
+  if (texte.length < 50) {
+    const candidat = Object.values(r)
+      .filter(v => typeof v === 'string' && v.length > texte.length)
+      .sort((a, b) => b.length - a.length)[0];
+    if (candidat) texte = candidat;
+  }
+  const t = texte.toLowerCase();
+  const nMots = texte.split(/\s+/).filter(Boolean).length;
+  const pct = parseInt(r.scorePct) || 0;
+
+  const signesMotivation = ['passion','passionné','souhait','envie','projet','objectif','je veux','je souhaite','je me vois','carrière','évoluer','expérience','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion'].filter(m => t.includes(m));
+  const signesPosture = ['responsable','organisé','ponctuel','sérieux','professionnel','écoute','discret','confidentiel','équipe','collabor','service','client','accompagner','aider','souriant','adaptable'].filter(m => t.includes(m));
+  const signesComprehension = ['accueil','administratif','gestion','facturation','planning','secrétaire','courrier','agenda','dossier','classement','bureautique','word','excel','logiciel','vente','rayon','stock','caisse','comptabilité','devis','contrat','paie','rh','recrutement'].filter(m => t.includes(m));
+  const signesVigilance = ['pas sûr','je ne sais pas','aucune idée','jamais travaillé','difficile','j\'essaierai','peut-être','je suppose'].filter(m => t.includes(m));
+
+  let score = 0;
+  if (pct >= 70) score += 3; else if (pct >= 40) score += 1;
+  score += Math.min(signesMotivation.length, 3);
+  score += Math.min(signesPosture.length, 3);
+  score += Math.min(signesComprehension.length, 2);
+  score -= signesVigilance.length;
+  if (nMots > 300) score += 2; else if (nMots > 150) score += 1; else if (nMots < 50) score -= 2;
+  return score;
+}
+
 function afficherListe() {
   const container = document.getElementById('listeCandidats');
   document.getElementById('badgeCount').textContent = resultatsAffiches.length + ' candidat(s)';
 
-  // Stats rapides basées sur score QCM
+  // Stats basées sur la même logique que l'analyse locale
   let fav=0, app=0, ina=0;
   resultatsAffiches.forEach(r => {
-    const pct = parseInt(r.scorePct) || 0;
-    if (pct >= 70) fav++;
-    else if (pct >= 40) app++;
+    const s = scoreLocal(r);
+    if (s >= 5) fav++;
+    else if (s >= 2) app++;
     else ina++;
   });
   document.getElementById('statTotal').textContent = resultatsAffiches.length;
