@@ -261,6 +261,16 @@ let radarInstance = null;
 // ── NORMALISATION DES DONNÉES ────────────────────────────────
 // Colonnes Google Sheet : A=Date, B=Formation, C=Nom, D=Prénom,
 //                         E=DDN, F=Téléphone, G=Email, H=Niveau, I=Réponses
+//
+// Le script Apps Script renvoie un objet avec les champs DÉCALÉS :
+//   r.heure     → contient la Formation (col B)
+//   r.formation → contient le Nom       (col C)
+//   r.nom       → contient la DDN       (col E)
+//   r.prenom    → contient le Téléphone (col F)
+//   r.ddn       → contient l'Email      (col G)
+//   r.tel       → contient le Niveau    (col H)
+//   r.email     → contient les Réponses (col I)
+//   (col D = Prénom non mappé par le script)
 function normaliserResultat(r, index) {
   // Cas 1 : Apps Script renvoie un tableau (row values)
   if (Array.isArray(r)) {
@@ -277,7 +287,7 @@ function normaliserResultat(r, index) {
       reponses:  String(r[8] || ''),
       scoreQCM:  String(r[9] || ''),
       scorePct:  String(r[10] || ''),
-      heure:     String(r[11] || ''),
+      heure:     '',
     };
   }
 
@@ -294,27 +304,48 @@ function normaliserResultat(r, index) {
       email:     String(r.G || ''),
       niveau:    String(r.H || ''),
       reponses:  String(r.I || ''),
-      scoreQCM:  String(r.J || r.scoreQCM || ''),
-      scorePct:  String(r.K || r.scorePct || ''),
-      heure:     String(r.L || r.heure || ''),
+      scoreQCM:  String(r.J || ''),
+      scorePct:  String(r.K || ''),
+      heure:     '',
     };
   }
 
-  // Cas 3 : objet déjà correctement nommé — passage direct
+  // Cas 3 : objet Apps Script avec champs décalés (mapping constaté)
+  // Détection : r.heure contient un nom de formation (pas un horaire)
+  const heureEstFormation = r.heure && !/^\d{1,2}h\d{2}|^\d{1,2}:\d{2}/.test(String(r.heure));
+  if (heureEstFormation) {
+    return {
+      id:        r.id || index + 1,
+      date:      String(r.date      || ''),
+      formation: String(r.heure     || ''),   // heure contient la Formation
+      nom:       String(r.formation || ''),   // formation contient le Nom
+      prenom:    String(r.prenom_reel || ''), // Prénom non mappé par le script
+      ddn:       String(r.nom       || ''),   // nom contient la DDN
+      tel:       String(r.prenom    || ''),   // prenom contient le Téléphone
+      email:     String(r.ddn       || ''),   // ddn contient l'Email
+      niveau:    String(r.tel       || ''),   // tel contient le Niveau
+      reponses:  String(r.email     || ''),   // email contient les Réponses
+      scoreQCM:  String(r.scoreQCM  || ''),
+      scorePct:  String(r.scorePct  || ''),
+      heure:     '',
+    };
+  }
+
+  // Cas 4 : objet correctement nommé — passage direct
   return {
     id:        r.id || index + 1,
     date:      String(r.date      || r.Date      || ''),
     formation: String(r.formation || r.Formation || ''),
     nom:       String(r.nom       || r.Nom       || ''),
     prenom:    String(r.prenom    || r.Prenom    || r.Prénom || ''),
-    ddn:       String(r.ddn       || r.DDN       || r.Ddn   || ''),
+    ddn:       String(r.ddn       || r.DDN       || ''),
     tel:       String(r.tel       || r.Tel       || r.Telephone || r.Téléphone || ''),
     email:     String(r.email     || r.Email     || ''),
     niveau:    String(r.niveau    || r.Niveau    || ''),
-    reponses:  String(r.reponses  || r.Reponses  || r.Réponses || ''),
-    scoreQCM:  String(r.scoreQCM  || r.ScoreQCM  || ''),
-    scorePct:  String(r.scorePct  || r.ScorePct  || ''),
-    heure:     String(r.heure     || r.Heure     || ''),
+    reponses:  String(r.reponses  || r.Réponses  || ''),
+    scoreQCM:  String(r.scoreQCM  || ''),
+    scorePct:  String(r.scorePct  || ''),
+    heure:     String(r.heure     || ''),
   };
 }
 
