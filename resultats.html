@@ -507,6 +507,23 @@ function initiales(nom, prenom) {
   return ((prenom||'')[0]||'') + ((nom||'')[0]||'');
 }
 
+function extraireReponses(texte) {
+  // Extraire uniquement les lignes de réponses (→) par type de question
+  const lignes = texte.split('\n');
+  const reponses = { QCM: [], OPEN: [], SITUATION: [], CALCUL: [], all: [] };
+  let typeActuel = '';
+  for (const ligne of lignes) {
+    const mType = ligne.match(/\[(QCM|OPEN|SITUATION|CALCUL)\]/);
+    if (mType) typeActuel = mType[1];
+    if (ligne.startsWith('→')) {
+      const rep = ligne.replace('→', '').trim();
+      reponses.all.push(rep);
+      if (typeActuel) reponses[typeActuel]?.push(rep);
+    }
+  }
+  return reponses;
+}
+
 function scoreLocal(r) {
   let texte = r.reponses || '';
   if (texte.length < 50) {
@@ -515,22 +532,43 @@ function scoreLocal(r) {
       .sort((a, b) => b.length - a.length)[0];
     if (candidat) texte = candidat;
   }
-  const t = texte.toLowerCase();
-  const nMots = texte.split(/\s+/).filter(Boolean).length;
-  const pct = parseInt(r.scorePct) || 0;
 
-  const signesMotivation = ['passion','passionné','souhait','envie','projet','objectif','je veux','je souhaite','je me vois','carrière','évoluer','expérience','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion'].filter(m => t.includes(m));
-  const signesPosture = ['responsable','organisé','ponctuel','sérieux','professionnel','écoute','discret','confidentiel','équipe','collabor','service','client','accompagner','aider','souriant','adaptable'].filter(m => t.includes(m));
-  const signesComprehension = ['accueil','administratif','gestion','facturation','planning','secrétaire','courrier','agenda','dossier','classement','bureautique','word','excel','logiciel','vente','rayon','stock','caisse','comptabilité','devis','contrat','paie','rh','recrutement'].filter(m => t.includes(m));
-  const signesVigilance = ['pas sûr','je ne sais pas','aucune idée','jamais travaillé','difficile','j\'essaierai','peut-être','je suppose'].filter(m => t.includes(m));
+  const reps = extraireReponses(texte);
+  const pct  = parseInt(r.scorePct) || 0;
 
+  // Texte des réponses UNIQUEMENT (pas les questions)
+  const texteReps    = reps.all.join(' ').toLowerCase();
+  const texteOpen    = [...reps.OPEN, ...reps.SITUATION].join(' ').toLowerCase();
+  const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
+
+  // ── Signaux positifs (dans les réponses uniquement) ───────
+  const signesMotivation = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
+  const signesPosture    = ['écoute','empathie','bienveillant','professionnel','organisé','équipe','discret','confidentiel','adaptable','posture','valoriser','soutenir','orienter'].filter(m => texteReps.includes(m));
+  const signesMetier     = ['entretien','diagnostic','parcours','bénéficiaire','dispositif','compétence','cv','emploi durable','contrat','mission','accompagnement individualisé','plan d\'action'].filter(m => texteReps.includes(m));
+
+  // ── Signaux négatifs ──────────────────────────────────────
+  const sanRepNb    = reps.all.filter(r => r.includes('Sans réponse') || r === '').length;
+  const repcourtes  = [...reps.OPEN, ...reps.SITUATION].filter(r => r.split(/\s+/).length < 5).length;
+  const repDerisoires = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
+
+  // ── Score composite ───────────────────────────────────────
   let score = 0;
   if (pct >= 70) score += 3; else if (pct >= 40) score += 1;
+
   score += Math.min(signesMotivation.length, 3);
   score += Math.min(signesPosture.length, 3);
-  score += Math.min(signesComprehension.length, 2);
-  score -= signesVigilance.length;
-  if (nMots > 300) score += 2; else if (nMots > 150) score += 1; else if (nMots < 50) score -= 2;
+  score += Math.min(signesMetier.length, 2);
+
+  // Richesse des réponses ouvertes
+  if (nMotsOpen > 200) score += 2;
+  else if (nMotsOpen > 80) score += 1;
+  else if (nMotsOpen < 30) score -= 2;
+
+  // Pénalités
+  score -= Math.min(sanRepNb, 3);         // réponses manquantes
+  score -= Math.min(repcourtes, 3);       // réponses trop courtes aux questions ouvertes
+  score -= repDerisoires.length * 2;      // réponses dérisoires ou inappropriées
+
   return score;
 }
 
@@ -665,48 +703,29 @@ async function analyserAvecIA(r) {
     if (candidat) texte = candidat;
   }
 
-  const t = texte.toLowerCase();
-  const nMots = texte.split(/\s+/).filter(Boolean).length;
-  const pct   = parseInt(r.scorePct) || 0;
+  const reps         = extraireReponses(texte);
+  const pct          = parseInt(r.scorePct) || 0;
+  const texteReps    = reps.all.join(' ').toLowerCase();
+  const texteOpen    = [...reps.OPEN, ...reps.SITUATION].join(' ').toLowerCase();
+  const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
 
-  // ── Signaux positifs ──────────────────────────────────────
-  const signesMotivation = [
-    'passion', 'passionné', 'souhait', 'envie', 'projet', 'objectif',
-    'je veux', 'je souhaite', 'je me vois', 'carrière', 'évoluer',
-    'expérience', 'j\'ai travaillé', 'j\'ai déjà', 'bénévole', 'stage', 'immersion'
-  ].filter(m => t.includes(m));
-
-  const signesPosture = [
-    'responsable', 'organisé', 'ponctuel', 'sérieux', 'professionnel',
-    'écoute', 'discret', 'confidentiel', 'équipe', 'collabor', 'service',
-    'client', 'accompagner', 'aider', 'souriant', 'adaptable'
-  ].filter(m => t.includes(m));
-
-  const signesComprehension = [
-    'accueil', 'administratif', 'gestion', 'facturation', 'planning',
-    'secrétaire', 'courrier', 'agenda', 'dossier', 'classement', 'bureautique',
-    'word', 'excel', 'logiciel', 'vente', 'rayon', 'stock', 'caisse',
-    'comptabilité', 'devis', 'contrat', 'paie', 'rh', 'recrutement'
-  ].filter(m => t.includes(m));
-
-  const signesVigilance = [
-    'pas sûr', 'je ne sais pas', 'aucune idée', 'jamais travaillé',
-    'difficile', 'j\'essaierai', 'peut-être', 'je suppose'
-  ].filter(m => t.includes(m));
+  const signesMotivation  = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
+  const signesPosture     = ['écoute','empathie','bienveillant','professionnel','organisé','équipe','discret','confidentiel','adaptable','posture','valoriser','soutenir','orienter'].filter(m => texteReps.includes(m));
+  const signesMetier      = ['entretien','diagnostic','parcours','bénéficiaire','dispositif','compétence','cv','emploi durable','contrat','mission','accompagnement individualisé','plan d\'action'].filter(m => texteReps.includes(m));
+  const sanRepNb          = reps.all.filter(rep => rep.includes('Sans réponse') || rep === '').length;
+  const repcourtes        = [...reps.OPEN, ...reps.SITUATION].filter(rep => rep.split(/\s+/).length < 5).length;
+  const repDerisoires     = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
 
   // ── Score composite ───────────────────────────────────────
   let score = 0;
-  if (pct >= 70) score += 3;
-  else if (pct >= 40) score += 1;
-
+  if (pct >= 70) score += 3; else if (pct >= 40) score += 1;
   score += Math.min(signesMotivation.length, 3);
   score += Math.min(signesPosture.length, 3);
-  score += Math.min(signesComprehension.length, 2);
-  score -= signesVigilance.length;
-
-  if (nMots > 300) score += 2;
-  else if (nMots > 150) score += 1;
-  else if (nMots < 50) score -= 2;
+  score += Math.min(signesMetier.length, 2);
+  if (nMotsOpen > 200) score += 2; else if (nMotsOpen > 80) score += 1; else if (nMotsOpen < 30) score -= 2;
+  score -= Math.min(sanRepNb, 3);
+  score -= Math.min(repcourtes, 3);
+  score -= repDerisoires.length * 2;
 
   // ── Recommandation (seuils calibrés) ─────────────────────
   let reco, recoLabel, recoColor;
@@ -721,18 +740,17 @@ async function analyserAvecIA(r) {
   // ── Points forts (cohérents avec la recommandation) ───────
   const pointsForts = [];
   if (score >= 2) {
-    // On n'affiche des points forts que si le profil est au moins "À approfondir"
     if (signesMotivation.length >= 2)
       pointsForts.push('Motivation exprimée clairement, projet professionnel identifié.');
     else if (signesMotivation.length === 1)
       pointsForts.push('Motivation présente, à consolider en entretien.');
     if (signesPosture.length >= 2)
       pointsForts.push('Posture professionnelle valorisée : ' + signesPosture.slice(0,3).join(', ') + '.');
-    if (signesComprehension.length >= 3)
+    if (signesMetier.length >= 2)
       pointsForts.push('Bonne connaissance du vocabulaire et des réalités du métier.');
-    else if (signesComprehension.length >= 1)
+    else if (signesMetier.length === 1)
       pointsForts.push('Notions du métier présentes, à approfondir.');
-    if (nMots > 250)
+    if (nMotsOpen > 200)
       pointsForts.push('Réponses développées témoignant d\'un investissement sérieux dans la démarche.');
   }
   if (!pointsForts.length)
@@ -740,14 +758,20 @@ async function analyserAvecIA(r) {
 
   // ── Points de vigilance ───────────────────────────────────
   const vigilance = [];
-  if (nMots < 80)
-    vigilance.push('Réponses courtes : approfondir la motivation et le projet en entretien.');
-  if (signesComprehension.length < 2)
+  if (repDerisoires.length > 0)
+    vigilance.push('Certaines réponses aux situations professionnelles sont inadaptées au contexte du métier.');
+  if (sanRepNb >= 2)
+    vigilance.push(sanRepNb + ' question(s) sans réponse : engagement et prérequis à vérifier en entretien.');
+  if (repcourtes >= 3)
+    vigilance.push('Réponses ouvertes très courtes : la motivation et le projet restent à développer.');
+  if (nMotsOpen < 80)
+    vigilance.push('Peu de développement dans les réponses ouvertes : approfondir en entretien.');
+  if (signesMetier.length < 2)
     vigilance.push('Connaissance du métier à consolider avant l\'entrée en formation.');
   if (pct > 0 && pct < 40)
     vigilance.push('Score QCM faible : vérifier les prérequis de base en entretien.');
   if (score < 2)
-    vigilance.push('Les éléments disponibles ne permettent pas de valider l\'adéquation au poste.');
+    vigilance.push('L\'ensemble du dossier ne permet pas de valider l\'adéquation au poste.');
   if (!vigilance.length)
     vigilance.push('À valider en entretien : expériences concrètes dans le secteur visé.');
 
