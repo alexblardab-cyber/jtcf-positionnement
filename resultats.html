@@ -565,30 +565,35 @@ async function analyserAvecIA(r) {
   const lignes = texte.split('\n').filter(l => l.trim());
   const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
 
+  const scoreDisponible = r.scoreQCM && r.scoreQCM !== '—';
   const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
-Analyse le test de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
+Analyse le dossier de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
 
-DONNÉES OBJECTIVES :
-- Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
+DONNÉES DISPONIBLES :
+- Score QCM : ${scoreDisponible ? r.scoreQCM + ' (' + r.scorePct + ')' : 'non renseigné — ne pas en tenir compte dans la recommandation'}
 - Niveau scolaire déclaré : ${r.niveau || 'non renseigné'}
 
-RÉPONSES OUVERTES ET MISES EN SITUATION :
-${repOuvertes || texte.substring(0, 3000)}
+RÉPONSES AU TEST DE POSITIONNEMENT :
+${texte.substring(0, 3500)}
 
-NOUVELLE GRILLE D'ÉVALUATION — double pondération :
-Le score QCM représente 40% de l'évaluation. Les réponses ouvertes et mises en situation représentent 60% : tu évalues la qualité de l'expression écrite, la cohérence du raisonnement, la maturité professionnelle, la motivation réelle, et la capacité à gérer des situations concrètes du métier.
+GRILLE D'ÉVALUATION :
+Tu analyses prioritairement les réponses textuelles (réponses ouvertes, mises en situation, calculs). Tu évalues :
+- La qualité et la cohérence de l'expression
+- La compréhension des réalités du métier
+- La motivation et le projet professionnel
+- La maturité et la posture professionnelle
+- La capacité à raisonner face à des situations concrètes
 
-Règles de décision :
-- Un bon score QCM avec des réponses pauvres ou incohérentes → "À approfondir" minimum
-- Des réponses ouvertes riches, structurées et motivées peuvent compenser un score QCM moyen
-- Un score faible ET des réponses superficielles → "Inadapté(e)"
+Si le score QCM est absent, base ta recommandation UNIQUEMENT sur les réponses textuelles.
+Une personne avec de bonnes réponses textuelles mérite "Très favorable" ou "À approfondir" même sans score QCM.
+"Inadapté(e)" ne doit être utilisé que si les réponses montrent une incompréhension profonde du métier ou une absence totale de motivation.
 
 Rédige l'analyse en 3 parties :
-1. POINTS FORTS — ce qui ressort positivement du dossier global (2-3 éléments concrets)
-2. POINTS DE VIGILANCE — ce qui mérite attention (1-2 éléments)
-3. RECOMMANDATION — commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)", puis explique en 1-2 phrases.
+1. POINTS FORTS — éléments positifs concrets issus des réponses (2-3 éléments)
+2. POINTS DE VIGILANCE — points à creuser en entretien (1-2 éléments, bienveillants)
+3. RECOMMANDATION — commence OBLIGATOIREMENT par "Très favorable", "À approfondir", ou "Inadapté(e)", suivi d'une justification courte.
 
-Ton posture : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement. Maximum 220 mots.`;
+Ton ton : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement. Maximum 220 mots.`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
