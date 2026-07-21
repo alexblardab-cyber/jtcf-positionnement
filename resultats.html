@@ -195,6 +195,9 @@
 
   <div class="filtres">
     <span class="filtre-label">Filtrer</span>
+    <select class="filtre-select" id="filtreTP" onchange="filtrer()">
+      <option value="">Tous les TP</option>
+    </select>
     <select class="filtre-select" id="filtreFormation" onchange="filtrer()">
       <option value="">Toutes les formations</option>
     </select>
@@ -258,6 +261,39 @@ let resultatsAffiches = [];
 let candidatCourant = null;
 let radarInstance = null;
 
+// ── CORRECTEUR DE CHAMPS ──────────────────────────────────────
+// Détecte si un champ ressemble à un numéro de téléphone
+function estTelephone(val) {
+  if (!val) return false;
+  const v = String(val).trim().replace(/[\s\-\.]/g, '');
+  return /^(\+262|0\d{9}|\d{10})$/.test(v);
+}
+
+// Corrige les données si nom/prénom contiennent des numéros de téléphone
+function normaliserResultat(r) {
+  const n = Object.assign({}, r);
+  // Si le nom ressemble à un téléphone, probablement inversion de colonnes
+  if (estTelephone(n.nom)) {
+    // Chercher un champ texte qui pourrait être le nom
+    const candidatNom = [n.prenom, n.email, n.tel].find(v => v && !estTelephone(v) && !String(v).includes('@'));
+    const candidatTel = n.nom;
+    if (candidatNom) {
+      // Le vrai nom est dans prenom, l'actuel "nom" est le téléphone
+      n.tel = n.tel || candidatTel;
+      n.nom = n.prenom || '—';
+      n.prenom = '';
+    }
+  }
+  // Si prenom ressemble à un téléphone
+  if (estTelephone(n.prenom)) {
+    n.tel = n.tel || n.prenom;
+    n.prenom = '';
+  }
+  // Fallback : si nom vide après correction
+  if (!n.nom || n.nom === '—') n.nom = '(Nom manquant)';
+  return n;
+}
+
 // ── LOGIN ─────────────────────────────────────────────────────
 function seConnecter() {
   const code = document.getElementById('codeAcces').value.trim();
@@ -279,34 +315,54 @@ async function chargerResultats() {
     }
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = data.resultats || [];
-    peuplerFiltreFormation();
+    tousResultats = (data.resultats || []).map(normaliserResultat);
+    peuplerFiltres();
     filtrer();
   } catch(e) {
     // Si Apps Script pas encore redéployé, utiliser données démo
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = donneesDEMO();
-    peuplerFiltreFormation();
+    tousResultats = donneesDEMO().map(normaliserResultat);
+    peuplerFiltres();
     filtrer();
   }
 }
 
-function peuplerFiltreFormation() {
-  const sel = document.getElementById('filtreFormation');
+function peuplerFiltres() {
+  // Filtre TP (Titre Professionnel — code court)
+  const selTP = document.getElementById('filtreTP');
+  selTP.innerHTML = '<option value="">Tous les TP</option>';
+  const tpKnown = ['EC','CV','ACA','AD','CIP','MHR','TH','TRNQL'];
+  const tpPresents = [...new Set(tousResultats.map(r => r.formationId).filter(Boolean))].sort();
+  // Afficher d'abord les TP connus dans l'ordre habituel, puis les autres
+  const tpOrdonnes = [
+    ...tpKnown.filter(t => tpPresents.includes(t)),
+    ...tpPresents.filter(t => !tpKnown.includes(t))
+  ];
+  tpOrdonnes.forEach(tp => {
+    const opt = document.createElement('option');
+    opt.value = tp; opt.textContent = tp;
+    selTP.appendChild(opt);
+  });
+
+  // Filtre formation (nom complet)
+  const selF = document.getElementById('filtreFormation');
+  selF.innerHTML = '<option value="">Toutes les formations</option>';
   const formations = [...new Set(tousResultats.map(r => r.formation))].sort();
   formations.forEach(f => {
     const opt = document.createElement('option');
     opt.value = f; opt.textContent = f;
-    sel.appendChild(opt);
+    selF.appendChild(opt);
   });
 }
 
 function filtrer() {
+  const tp   = document.getElementById('filtreTP').value;
   const form = document.getElementById('filtreFormation').value;
   const jours = parseInt(document.getElementById('filtrePeriode').value) || 0;
   resultatsAffiches = tousResultats.filter(r => {
-    if (form && r.formation !== form) return false;
+    if (tp   && r.formationId !== tp)   return false;
+    if (form && r.formation  !== form)  return false;
     if (jours) {
       const d = parseDate(r.date);
       if (!d) return true;
@@ -371,13 +427,15 @@ function afficherListe() {
     const card = document.createElement('div');
     card.className = 'candidat-card';
     card.onclick = () => ouvrirModal(r);
+    // Construire le libellé formation avec code TP si disponible
+    const labelFormation = r.formationId ? `${r.formationId} · ${r.formation}` : r.formation;
     card.innerHTML = `
       ${r.scoreQCM ? `<div class="score-badge ${sc}">${r.scoreQCM} · ${pct}</div>` : ''}
       <div class="candidat-header">
-        <div class="candidat-avatar">${ini}</div>
+        <div class="candidat-avatar">${ini || '?'}</div>
         <div>
-          <div class="candidat-nom">${r.prenom} ${r.nom}</div>
-          <div class="candidat-form">${r.formation}</div>
+          <div class="candidat-nom">${r.prenom ? r.prenom + ' ' + r.nom : r.nom}</div>
+          <div class="candidat-form">${labelFormation}</div>
           <div class="candidat-date">📅 ${r.date} ${r.heure ? '· '+r.heure : ''}</div>
         </div>
       </div>
@@ -390,8 +448,9 @@ function afficherListe() {
 async function ouvrirModal(r) {
   candidatCourant = r;
   document.getElementById('modalOverlay').classList.add('open');
-  document.getElementById('modalTitre').textContent = r.prenom + ' ' + r.nom;
-  document.getElementById('modalSous').textContent = r.formation + ' · ' + r.date;
+  const nomComplet = r.prenom ? r.prenom + ' ' + r.nom : r.nom;
+  document.getElementById('modalTitre').textContent = nomComplet;
+  document.getElementById('modalSous').textContent = r.formation + (r.formationId ? ' (' + r.formationId + ')' : '') + ' · ' + r.date;
 
   // Infos
   document.getElementById('modalInfos').innerHTML = `
@@ -400,7 +459,7 @@ async function ouvrirModal(r) {
     <div class="info-item"><div class="info-lbl">Email</div><div class="info-val">${r.email||'—'}</div></div>
     <div class="info-item"><div class="info-lbl">Niveau</div><div class="info-val">${r.niveau||'—'}</div></div>
     <div class="info-item"><div class="info-lbl">Score QCM</div><div class="info-val">${r.scoreQCM||'—'} (${r.scorePct||'—'})</div></div>
-    <div class="info-item"><div class="info-lbl">Formation visée</div><div class="info-val">${r.formation}</div></div>`;
+    <div class="info-item"><div class="info-lbl">Formation visée</div><div class="info-val">${r.formation}${r.formationId ? ' <span style="color:var(--or);font-weight:800">' + r.formationId + '</span>' : ''}</div></div>`;
 
   // Radar
   dessinerRadar(r);
@@ -479,7 +538,7 @@ ${repOuvertes || texte.substring(0, 2000)}
 
 Donne une analyse structurée en 3 parties :
 1. POINTS FORTS (2-3 éléments)
-2. POINTS DE VIGILANCE (1-2 éléments)  
+2. POINTS DE VIGILANCE (1-2 éléments)
 3. RECOMMANDATION : commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)"
 
 Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
@@ -560,11 +619,12 @@ async function genererPDF() {
   doc.text('TEST DE POSITIONNEMENT — ' + r.formation.toUpperCase(), 20, 30);
 
   // Infos candidat
+  const nomComplet = r.prenom ? r.prenom + ' ' + r.nom : r.nom;
   doc.setFillColor(245,247,250); doc.rect(15,40,180,38,'F');
   doc.setTextColor(...BF); doc.setFontSize(14); doc.setFont('helvetica','bold');
-  doc.text(r.prenom + ' ' + r.nom, 20, 52);
+  doc.text(nomComplet, 20, 52);
   doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS);
-  doc.text('Formation : ' + r.formation, 20, 59);
+  doc.text('Formation : ' + r.formation + (r.formationId ? ' (' + r.formationId + ')' : ''), 20, 59);
   doc.text('Date : ' + r.date + '   ·   Niveau : ' + (r.niveau||'—'), 20, 65);
   doc.text('Tél : ' + (r.tel||'—') + '   ·   Email : ' + (r.email||'—'), 20, 71);
 
@@ -593,7 +653,7 @@ async function genererPDF() {
   doc.text('JTCF · 20a rue du Général Lambert · 97480 Saint-Joseph · contact@tbrgroup.fr', 20, 291);
   doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 190, 291, {align:'right'});
 
-  doc.save('JTCF_Positionnement_' + r.prenom + '_' + r.nom + '.pdf');
+  doc.save('JTCF_Positionnement_' + (r.prenom||'') + '_' + r.nom + '.pdf');
 }
 
 // ── DONNÉES DÉMO (si Apps Script pas encore redéployé) ────────
@@ -607,6 +667,10 @@ function donneesDEMO() {
       nom:'Martin', prenom:'Kevin', ddn:'20/09/1998', tel:'0693 456 789', email:'kevin.martin@email.re',
       niveau:'CAP', scoreQCM:'4/10', scorePct:'40%',
       reponses: 'FORMATION : Employé(e) Commercial(e)\nCANDIDAT : Kevin Martin\n---\nQ1 [QCM] : Qu\'est-ce que la mise en rayon ?\n→ Ranger les produits en réserve\nQ11 [OPEN] : Pourquoi souhaitez-vous vous former ?\n→ Parce que je cherche du travail et que c\'est une formation disponible.\nQ18 [SITUATION] : Un client signale un écart de prix...\n→ Je le dirige vers la caisse.' },
+    { id:3, date:'15/07/2026', heure:'10:00', formation:'Assistant(e) de Comptabilité et d\'Administration', formationId:'ACA',
+      nom:'Grondin', prenom:'Sarah', ddn:'02/11/2001', tel:'0692 789 012', email:'sarah.grondin@email.re',
+      niveau:'Bac+2', scoreQCM:'9/10', scorePct:'90%',
+      reponses: 'FORMATION : ACA\nCANDIDAT : Sarah Grondin\n---\nQ11 [OPEN] : Pourquoi cette formation ?\n→ Je souhaite me spécialiser en comptabilité après mon BTS gestion PME.' },
   ];
 }
 </script>
