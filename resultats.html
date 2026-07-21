@@ -681,32 +681,35 @@ async function analyserAvecIA(r) {
   else if (nMots > 150) score += 1;
   else if (nMots < 50) score -= 2;
 
-  // ── Recommandation ────────────────────────────────────────
-  let reco, recoLabel, recoClass;
-  if (score >= 7) {
-    reco = '✅ Très favorable'; recoLabel = 'Très favorable'; recoClass = 'vert';
-  } else if (score >= 3) {
-    reco = '⚠️ À approfondir'; recoLabel = 'À approfondir'; recoClass = 'orange';
+  // ── Recommandation (seuils calibrés) ─────────────────────
+  let reco, recoLabel, recoColor;
+  if (score >= 5) {
+    reco = '✅ Très favorable'; recoLabel = 'Très favorable'; recoColor = '#1D9E75';
+  } else if (score >= 2) {
+    reco = '⚠️ À approfondir'; recoLabel = 'À approfondir'; recoColor = '#B7791F';
   } else {
-    reco = '❌ Inadapté(e)'; recoLabel = 'Inadapté(e)'; recoClass = 'rouge';
+    reco = '❌ Inadapté(e)'; recoLabel = 'Inadapté(e)'; recoColor = '#C0392B';
   }
 
-  // ── Points forts ──────────────────────────────────────────
+  // ── Points forts (cohérents avec la recommandation) ───────
   const pointsForts = [];
-  if (signesMotivation.length >= 2)
-    pointsForts.push('Motivation exprimée clairement et projet professionnel identifié.');
-  else if (signesMotivation.length === 1)
-    pointsForts.push('Projet professionnel présent, à consolider en entretien.');
-  if (signesPosture.length >= 2)
-    pointsForts.push('Posture professionnelle valorisée : ' + signesPosture.slice(0,3).join(', ') + '.');
-  if (signesComprehension.length >= 3)
-    pointsForts.push('Bonne connaissance du vocabulaire et des réalités du métier visé.');
-  else if (signesComprehension.length >= 1)
-    pointsForts.push('Notions du métier présentes, méritent d\'être approfondies.');
-  if (nMots > 250)
-    pointsForts.push('Réponses développées et structurées, témoignant d\'un investissement sérieux.');
+  if (score >= 2) {
+    // On n'affiche des points forts que si le profil est au moins "À approfondir"
+    if (signesMotivation.length >= 2)
+      pointsForts.push('Motivation exprimée clairement, projet professionnel identifié.');
+    else if (signesMotivation.length === 1)
+      pointsForts.push('Motivation présente, à consolider en entretien.');
+    if (signesPosture.length >= 2)
+      pointsForts.push('Posture professionnelle valorisée : ' + signesPosture.slice(0,3).join(', ') + '.');
+    if (signesComprehension.length >= 3)
+      pointsForts.push('Bonne connaissance du vocabulaire et des réalités du métier.');
+    else if (signesComprehension.length >= 1)
+      pointsForts.push('Notions du métier présentes, à approfondir.');
+    if (nMots > 250)
+      pointsForts.push('Réponses développées témoignant d\'un investissement sérieux dans la démarche.');
+  }
   if (!pointsForts.length)
-    pointsForts.push('Candidat(e) en démarche active de formation.');
+    pointsForts.push('Démarche de formation engagée, motivations à explorer en entretien.');
 
   // ── Points de vigilance ───────────────────────────────────
   const vigilance = [];
@@ -716,20 +719,26 @@ async function analyserAvecIA(r) {
     vigilance.push('Connaissance du métier à consolider avant l\'entrée en formation.');
   if (pct > 0 && pct < 40)
     vigilance.push('Score QCM faible : vérifier les prérequis de base en entretien.');
+  if (score < 2)
+    vigilance.push('Les éléments disponibles ne permettent pas de valider l\'adéquation au poste.');
   if (!vigilance.length)
-    vigilance.push('Point à valider en entretien : expériences concrètes dans le secteur.');
+    vigilance.push('À valider en entretien : expériences concrètes dans le secteur visé.');
+
+  // ── Texte de conclusion cohérent ─────────────────────────
+  const conclusion = score >= 5
+    ? 'Le dossier présente des signaux positifs solides. Entrée en formation recommandée.'
+    : score >= 2
+    ? 'Profil intéressant nécessitant un entretien approfondi pour confirmer l\'adéquation.'
+    : 'Les éléments disponibles révèlent des lacunes importantes. Un bilan ou accompagnement préalable est conseillé.';
 
   // ── Mise en forme HTML ────────────────────────────────────
-  const couleurs = { vert: '#1D9E75', orange: '#B7791F', rouge: '#C0392B' };
   const html = `
     <p><strong>📌 Points forts</strong><br>
     ${pointsForts.map(p => '• ' + p).join('<br>')}</p>
     <p><strong>⚠️ Points de vigilance</strong><br>
     ${vigilance.map(v => '• ' + v).join('<br>')}</p>
-    <p><strong style="color:${couleurs[recoClass]}">🎯 Recommandation : ${recoLabel}</strong><br>
-    ${score >= 7 ? 'Le dossier présente des signaux positifs solides. Entrée en formation recommandée.'
-      : score >= 3 ? 'Profil intéressant nécessitant un entretien approfondi pour confirmer l\'adéquation.'
-      : 'Le dossier présente des lacunes importantes. Un accompagnement préalable est conseillé.'}</p>`;
+    <p><strong style="color:${recoColor}">🎯 Recommandation : ${recoLabel}</strong><br>
+    ${conclusion}</p>`;
 
   return { html, reco };
 }
