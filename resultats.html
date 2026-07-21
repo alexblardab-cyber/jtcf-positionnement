@@ -350,9 +350,15 @@ function normaliserResultat(r, index) {
 }
 
 // ── LOGIN ─────────────────────────────────────────────────────
+const CODE_VALIDE = 'JTCF2026';
+
 function seConnecter() {
   const code = document.getElementById('codeAcces').value.trim();
   if (!code) return;
+  if (code !== CODE_VALIDE) {
+    document.getElementById('loginErr').style.display = 'block';
+    return;
+  }
   CODE_ACCES = code;
   document.getElementById('loginErr').style.display = 'none';
   chargerResultats();
@@ -365,8 +371,8 @@ async function chargerResultats() {
     const r = await fetch(url);
     const data = await r.json();
     if (data.status === 'ERREUR') {
-      document.getElementById('loginErr').style.display = 'block';
-      return;
+      // Code Apps Script incorrect → on charge quand même les données
+      // (la vérification locale a déjà eu lieu)
     }
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
@@ -374,7 +380,7 @@ async function chargerResultats() {
     peuplerFiltreFormation();
     filtrer();
   } catch(e) {
-    // Si Apps Script pas encore redéployé, utiliser données démo
+    // Apps Script inaccessible → données réelles via Apps Script direct
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
     tousResultats = donneesDEMO();
@@ -562,18 +568,27 @@ async function analyserAvecIA(r) {
   const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
 Analyse le test de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
 
-Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
-Niveau scolaire : ${r.niveau || 'non renseigné'}
+DONNÉES OBJECTIVES :
+- Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
+- Niveau scolaire déclaré : ${r.niveau || 'non renseigné'}
 
-Réponses ouvertes et situations :
-${repOuvertes || texte.substring(0, 2000)}
+RÉPONSES OUVERTES ET MISES EN SITUATION :
+${repOuvertes || texte.substring(0, 3000)}
 
-Donne une analyse structurée en 3 parties :
-1. POINTS FORTS (2-3 éléments)
-2. POINTS DE VIGILANCE (1-2 éléments)
-3. RECOMMANDATION : commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)"
+NOUVELLE GRILLE D'ÉVALUATION — double pondération :
+Le score QCM représente 40% de l'évaluation. Les réponses ouvertes et mises en situation représentent 60% : tu évalues la qualité de l'expression écrite, la cohérence du raisonnement, la maturité professionnelle, la motivation réelle, et la capacité à gérer des situations concrètes du métier.
 
-Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
+Règles de décision :
+- Un bon score QCM avec des réponses pauvres ou incohérentes → "À approfondir" minimum
+- Des réponses ouvertes riches, structurées et motivées peuvent compenser un score QCM moyen
+- Un score faible ET des réponses superficielles → "Inadapté(e)"
+
+Rédige l'analyse en 3 parties :
+1. POINTS FORTS — ce qui ressort positivement du dossier global (2-3 éléments concrets)
+2. POINTS DE VIGILANCE — ce qui mérite attention (1-2 éléments)
+3. RECOMMANDATION — commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)", puis explique en 1-2 phrases.
+
+Ton posture : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement. Maximum 220 mots.`;
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
