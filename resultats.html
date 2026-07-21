@@ -218,7 +218,6 @@
       <div class="header-sub">Résultats positionnement</div>
     </div>
     <div class="header-right">
-      <button class="btn-cle" id="btnCle" onclick="ouvrirModalCle()">🔑 Clé IA</button>
       <span class="badge-count" id="badgeCount">0 candidat(s)</span>
     </div>
   </div>
@@ -628,10 +627,9 @@ function dessinerRadar(r) {
   });
 }
 
-// ── ANALYSE IA ────────────────────────────────────────────────
+// ── ANALYSE LOCALE (sans IA externe) ─────────────────────────
 async function analyserAvecIA(r) {
-  // Si reponses est vide, chercher le champ texte le plus long dans l'objet
-  // (le mapping Apps Script peut placer les réponses dans un autre champ)
+  // Récupérer le texte des réponses (champ le plus long si reponses vide)
   let texte = r.reponses || '';
   if (texte.length < 50) {
     const candidat = Object.values(r)
@@ -639,83 +637,101 @@ async function analyserAvecIA(r) {
       .sort((a, b) => b.length - a.length)[0];
     if (candidat) texte = candidat;
   }
-  const lignes = texte.split('\n').filter(l => l.trim());
-  const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
 
-  const scoreDisponible = r.scoreQCM && r.scoreQCM !== '—';
-  const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
-Analyse le dossier de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
+  const t = texte.toLowerCase();
+  const nMots = texte.split(/\s+/).filter(Boolean).length;
+  const pct   = parseInt(r.scorePct) || 0;
 
-DONNÉES DISPONIBLES :
-- Score QCM : ${scoreDisponible ? r.scoreQCM + ' (' + r.scorePct + ')' : 'non renseigné — ne pas en tenir compte dans la recommandation'}
-- Niveau scolaire déclaré : ${r.niveau || 'non renseigné'}
+  // ── Signaux positifs ──────────────────────────────────────
+  const signesMotivation = [
+    'passion', 'passionné', 'souhait', 'envie', 'projet', 'objectif',
+    'je veux', 'je souhaite', 'je me vois', 'carrière', 'évoluer',
+    'expérience', 'j\'ai travaillé', 'j\'ai déjà', 'bénévole', 'stage', 'immersion'
+  ].filter(m => t.includes(m));
 
-RÉPONSES AU TEST DE POSITIONNEMENT :
-${texte.substring(0, 3500)}
+  const signesPosture = [
+    'responsable', 'organisé', 'ponctuel', 'sérieux', 'professionnel',
+    'écoute', 'discret', 'confidentiel', 'équipe', 'collabor', 'service',
+    'client', 'accompagner', 'aider', 'souriant', 'adaptable'
+  ].filter(m => t.includes(m));
 
-GRILLE D'ÉVALUATION :
-Tu analyses prioritairement les réponses textuelles (réponses ouvertes, mises en situation, calculs). Tu évalues :
-- La qualité et la cohérence de l'expression
-- La compréhension des réalités du métier
-- La motivation et le projet professionnel
-- La maturité et la posture professionnelle
-- La capacité à raisonner face à des situations concrètes
+  const signesComprehension = [
+    'accueil', 'administratif', 'gestion', 'facturation', 'planning',
+    'secrétaire', 'courrier', 'agenda', 'dossier', 'classement', 'bureautique',
+    'word', 'excel', 'logiciel', 'vente', 'rayon', 'stock', 'caisse',
+    'comptabilité', 'devis', 'contrat', 'paie', 'rh', 'recrutement'
+  ].filter(m => t.includes(m));
 
-Si le score QCM est absent, base ta recommandation UNIQUEMENT sur les réponses textuelles.
-Une personne avec de bonnes réponses textuelles mérite "Très favorable" ou "À approfondir" même sans score QCM.
-"Inadapté(e)" ne doit être utilisé que si les réponses montrent une incompréhension profonde du métier ou une absence totale de motivation.
+  const signesVigilance = [
+    'pas sûr', 'je ne sais pas', 'aucune idée', 'jamais travaillé',
+    'difficile', 'j\'essaierai', 'peut-être', 'je suppose'
+  ].filter(m => t.includes(m));
 
-Rédige l'analyse en 3 parties :
-1. POINTS FORTS — éléments positifs concrets issus des réponses (2-3 éléments)
-2. POINTS DE VIGILANCE — points à creuser en entretien (1-2 éléments, bienveillants)
-3. RECOMMANDATION — commence OBLIGATOIREMENT par "Très favorable", "À approfondir", ou "Inadapté(e)", suivi d'une justification courte.
+  // ── Score composite ───────────────────────────────────────
+  let score = 0;
+  if (pct >= 70) score += 3;
+  else if (pct >= 40) score += 1;
 
-Ton ton : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement. Maximum 220 mots.`;
+  score += Math.min(signesMotivation.length, 3);
+  score += Math.min(signesPosture.length, 3);
+  score += Math.min(signesComprehension.length, 2);
+  score -= signesVigilance.length;
 
-  if (!CLE_API) {
-    return {
-      html: '<em>Clé API manquante. Cliquez sur <strong>🔑 Clé IA</strong> en haut à droite pour la configurer.</em>',
-      reco: '—'
-    };
+  if (nMots > 300) score += 2;
+  else if (nMots > 150) score += 1;
+  else if (nMots < 50) score -= 2;
+
+  // ── Recommandation ────────────────────────────────────────
+  let reco, recoLabel, recoClass;
+  if (score >= 7) {
+    reco = '✅ Très favorable'; recoLabel = 'Très favorable'; recoClass = 'vert';
+  } else if (score >= 3) {
+    reco = '⚠️ À approfondir'; recoLabel = 'À approfondir'; recoClass = 'orange';
+  } else {
+    reco = '❌ Inadapté(e)'; recoLabel = 'Inadapté(e)'; recoClass = 'rouge';
   }
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': CLE_API,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await resp.json();
-    if (data.error) throw new Error(data.error.message);
-    const texteIA = data.content?.[0]?.text || '';
 
-    // Extraire la recommandation
-    let reco = '—';
-    if (texteIA.includes('Très favorable')) reco = '✅ Très favorable';
-    else if (texteIA.includes('À approfondir')) reco = '⚠️ À approfondir';
-    else if (texteIA.includes('Inadapté')) reco = '❌ Inadapté(e)';
+  // ── Points forts ──────────────────────────────────────────
+  const pointsForts = [];
+  if (signesMotivation.length >= 2)
+    pointsForts.push('Motivation exprimée clairement et projet professionnel identifié.');
+  else if (signesMotivation.length === 1)
+    pointsForts.push('Projet professionnel présent, à consolider en entretien.');
+  if (signesPosture.length >= 2)
+    pointsForts.push('Posture professionnelle valorisée : ' + signesPosture.slice(0,3).join(', ') + '.');
+  if (signesComprehension.length >= 3)
+    pointsForts.push('Bonne connaissance du vocabulaire et des réalités du métier visé.');
+  else if (signesComprehension.length >= 1)
+    pointsForts.push('Notions du métier présentes, méritent d\'être approfondies.');
+  if (nMots > 250)
+    pointsForts.push('Réponses développées et structurées, témoignant d\'un investissement sérieux.');
+  if (!pointsForts.length)
+    pointsForts.push('Candidat(e) en démarche active de formation.');
 
-    // Formater le texte
-    const html = texteIA
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n/g, '<br>');
+  // ── Points de vigilance ───────────────────────────────────
+  const vigilance = [];
+  if (nMots < 80)
+    vigilance.push('Réponses courtes : approfondir la motivation et le projet en entretien.');
+  if (signesComprehension.length < 2)
+    vigilance.push('Connaissance du métier à consolider avant l\'entrée en formation.');
+  if (pct > 0 && pct < 40)
+    vigilance.push('Score QCM faible : vérifier les prérequis de base en entretien.');
+  if (!vigilance.length)
+    vigilance.push('Point à valider en entretien : expériences concrètes dans le secteur.');
 
-    return { html: '<p>' + html + '</p>', reco };
-  } catch(e) {
-    return {
-      html: '<em>Analyse IA indisponible. Vérifiez la connexion.</em>',
-      reco: parseInt(r.scorePct) >= 70 ? '✅ Très favorable' : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '❌ Score faible'
-    };
-  }
+  // ── Mise en forme HTML ────────────────────────────────────
+  const couleurs = { vert: '#1D9E75', orange: '#B7791F', rouge: '#C0392B' };
+  const html = `
+    <p><strong>📌 Points forts</strong><br>
+    ${pointsForts.map(p => '• ' + p).join('<br>')}</p>
+    <p><strong>⚠️ Points de vigilance</strong><br>
+    ${vigilance.map(v => '• ' + v).join('<br>')}</p>
+    <p><strong style="color:${couleurs[recoClass]}">🎯 Recommandation : ${recoLabel}</strong><br>
+    ${score >= 7 ? 'Le dossier présente des signaux positifs solides. Entrée en formation recommandée.'
+      : score >= 3 ? 'Profil intéressant nécessitant un entretien approfondi pour confirmer l\'adéquation.'
+      : 'Le dossier présente des lacunes importantes. Un accompagnement préalable est conseillé.'}</p>`;
+
+  return { html, reco };
 }
 
 // ── RÉPONSES ──────────────────────────────────────────────────
