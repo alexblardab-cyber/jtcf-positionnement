@@ -314,6 +314,10 @@ function normaliserResultat(r, index) {
   // Détection : r.heure contient un nom de formation (pas un horaire)
   const heureEstFormation = r.heure && !/^\d{1,2}h\d{2}|^\d{1,2}:\d{2}/.test(String(r.heure));
   if (heureEstFormation) {
+    // Trouver le champ contenant les réponses = le plus long champ texte
+    const tousChamps = Object.entries(r).filter(([,v]) => typeof v === 'string');
+    const champReponses = tousChamps.sort((a,b) => b[1].length - a[1].length)[0];
+    const texteReponses = champReponses ? champReponses[1] : '';
     return {
       id:        r.id || index + 1,
       date:      String(r.date      || ''),
@@ -324,7 +328,7 @@ function normaliserResultat(r, index) {
       tel:       String(r.prenom    || ''),   // prenom contient le Téléphone
       email:     String(r.ddn       || ''),   // ddn contient l'Email
       niveau:    String(r.tel       || ''),   // tel contient le Niveau
-      reponses:  String(r.email     || ''),   // email contient les Réponses
+      reponses:  texteReponses,               // champ le plus long = réponses
       scoreQCM:  String(r.scoreQCM  || ''),
       scorePct:  String(r.scorePct  || ''),
       heure:     '',
@@ -560,8 +564,15 @@ function dessinerRadar(r) {
 
 // ── ANALYSE IA ────────────────────────────────────────────────
 async function analyserAvecIA(r) {
-  // Extraire les réponses ouvertes et situations du texte brut
-  const texte = r.reponses || '';
+  // Si reponses est vide, chercher le champ texte le plus long dans l'objet
+  // (le mapping Apps Script peut placer les réponses dans un autre champ)
+  let texte = r.reponses || '';
+  if (texte.length < 50) {
+    const candidat = Object.values(r)
+      .filter(v => typeof v === 'string' && v.length > texte.length)
+      .sort((a, b) => b.length - a.length)[0];
+    if (candidat) texte = candidat;
+  }
   const lignes = texte.split('\n').filter(l => l.trim());
   const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
 
