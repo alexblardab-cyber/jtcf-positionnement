@@ -152,6 +152,19 @@
   .reco-inadapte   { background: #FEECEC; color: var(--rouge); }
   .loading-ia { color: var(--gris); font-size: 11px; font-style: italic; }
 
+  /* ── FORMATIONS ALTERNATIVES ── */
+  .altern-box {
+    background: #F0F7FF; border: 1.5px solid #BEE3F8; border-radius: 12px;
+    padding: 16px; margin-top: 16px;
+  }
+  .altern-titre { font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 12px; }
+  .altern-item  { margin-bottom: 10px; }
+  .altern-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .altern-nom   { font-size: 12px; font-weight: 600; color: var(--navy); }
+  .altern-pct   { font-size: 12px; font-weight: 800; color: var(--navy2); }
+  .altern-bar   { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
+  .altern-fill  { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--navy2), var(--or)); transition: width .6s ease; }
+
   /* ── MODAL DÉTAIL ── */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,.5);
@@ -287,6 +300,7 @@
     <div class="radar-container"><canvas id="radarChart"></canvas></div>
     <div class="section-titre">Analyse IA</div>
     <div class="analyse-box" id="analyseIA"><span class="analyse-loading">Analyse en cours...</span></div>
+    <div id="sectAlternatives"></div>
     <div class="section-titre">Réponses complètes</div>
     <div id="modalReponses"></div>
     <button class="btn-pdf" onclick="genererPDF()">📄 Exporter le rapport PDF</button>
@@ -650,6 +664,99 @@ async function ouvrirModal(r) {
 
   // Réponses
   afficherReponses(r);
+
+  // Formations alternatives (si inadapté ou à approfondir)
+  if (analyse.reco.includes('approfondir') || analyse.reco.includes('Inadapt')) {
+    afficherAlternatives(r);
+  } else {
+    document.getElementById('sectAlternatives').innerHTML = '';
+  }
+}
+
+// ── FORMATIONS ALTERNATIVES ───────────────────────────────────
+const PROFILS_FORMATIONS = {
+  'Conseiller(ère) en Insertion Professionnelle': {
+    mots: ['accompagnement','bénéficiaire','emploi','parcours','diagnostic','entretien','insertion','dispositif','empathie','écoute','orientation','mission locale','france travail','rsа','cap emploi'],
+    soft: ['écoute','empathie','bienveillant','accompagner','soutenir','orienter','patient']
+  },
+  'Secrétaire Assistant(e) Médico-Administratif(ve)': {
+    mots: ['médical','santé','patient','ordonnance','cabinet','secrétaire','administratif','dossier','agenda','accueil','prise en charge','mutuelle','rendez-vous','soin'],
+    soft: ['organisé','rigoureux','discret','confidentiel','précis','accueil']
+  },
+  'Assistant(e) de Direction': {
+    mots: ['direction','agenda','réunion','planning','courrier','rapport','présentation','coordination','gestion','excel','word','powerpoint','budget','déplacement'],
+    soft: ['organisé','polyvalent','discret','autonome','réactif','prioriser']
+  },
+  'Chargé(e) d\'Accueil et de Gestion Administrative': {
+    mots: ['accueil','gestion','administratif','courrier','classement','bureautique','standard','mail','traitement','dossier','base de données','tableau'],
+    soft: ['souriant','organisé','polyvalent','communication','service','accueil']
+  },
+  'Conseiller(ère) de Vente': {
+    mots: ['vente','client','produit','conseil','cab','argumentation','fidélisation','panier','objectif','chiffre','rayon','boutique','commerce'],
+    soft: ['dynamique','souriant','persuasif','écoute','service','contact','équipe']
+  },
+  'Employé(e) Commercial(e)': {
+    mots: ['rayon','stock','mise en rayon','caisse','inventaire','commande','prix','étiquette','facing','réserve','magasin','commerce'],
+    soft: ['dynamique','rigoureux','équipe','polyvalent','service']
+  },
+  'Comptabilité / Gestion': {
+    mots: ['comptabilité','facture','devis','bilan','tva','paie','salaire','budget','excel','chiffre','calcul','finance','trésorerie'],
+    soft: ['rigoureux','précis','organisé','discret','analytique']
+  }
+};
+
+function scoreFormation(texteReps, profil) {
+  const t = texteReps.toLowerCase();
+  const motsOk   = profil.mots.filter(m => t.includes(m)).length;
+  const softOk   = profil.soft.filter(m => t.includes(m)).length;
+  const maxMots  = profil.mots.length;
+  const maxSoft  = profil.soft.length;
+  return Math.round(((motsOk / maxMots) * 60 + (softOk / maxSoft) * 40));
+}
+
+function afficherAlternatives(r) {
+  let texte = r.reponses || '';
+  if (texte.length < 50) {
+    const c = Object.values(r).filter(v => typeof v === 'string').sort((a,b) => b.length - a.length)[0];
+    if (c) texte = c;
+  }
+  const reps      = extraireReponses(texte);
+  const texteReps = reps.all.join(' ');
+
+  // Scorer chaque formation sauf celle visée
+  const scores = Object.entries(PROFILS_FORMATIONS)
+    .filter(([nom]) => nom !== r.formation)
+    .map(([nom, profil]) => ({ nom, pct: scoreFormation(texteReps, profil) }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 3);
+
+  // Score de la formation visée (pour comparaison)
+  const profilVise  = PROFILS_FORMATIONS[r.formation];
+  const scoreVise   = profilVise ? scoreFormation(texteReps, profilVise) : 0;
+  const meilleурPct = scores[0]?.pct || 0;
+
+  if (meilleурPct < 10) {
+    document.getElementById('sectAlternatives').innerHTML = '';
+    return;
+  }
+
+  const items = scores.map(s => `
+    <div class="altern-item">
+      <div class="altern-label">
+        <span class="altern-nom">${s.nom}</span>
+        <span class="altern-pct">${s.pct}%</span>
+      </div>
+      <div class="altern-bar"><div class="altern-fill" style="width:${s.pct}%"></div></div>
+    </div>`).join('');
+
+  document.getElementById('sectAlternatives').innerHTML = `
+    <div class="section-titre">Formations alternatives</div>
+    <div class="altern-box">
+      <div class="altern-titre">🔄 Adéquation avec d'autres formations JTCF
+        ${scoreVise > 0 ? `<span style="font-size:11px;font-weight:400;color:var(--gris)"> · Formation visée : ${scoreVise}%</span>` : ''}
+      </div>
+      ${items}
+    </div>`;
 }
 
 function fermerModal() {
