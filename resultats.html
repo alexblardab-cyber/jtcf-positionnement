@@ -64,6 +64,35 @@
     background: var(--or); color: var(--navy); border-radius: 20px;
     padding: 3px 12px; font-size: 12px; font-weight: 800;
   }
+  .btn-cle {
+    padding: 6px 12px; background: rgba(255,255,255,0.15); color: white;
+    border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
+    font-size: 12px; cursor: pointer;
+  }
+  .btn-cle.ok { background: rgba(29,158,117,0.4); border-color: var(--vert); }
+
+  /* ── MODAL CLÉ API ── */
+  .modal-cle {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    z-index: 300; display: none; align-items: center; justify-content: center;
+  }
+  .modal-cle.open { display: flex; }
+  .modal-cle-box {
+    background: white; border-radius: 16px; padding: 32px; width: 440px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .modal-cle-titre { font-size: 16px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+  .modal-cle-info  { font-size: 12px; color: var(--gris); margin-bottom: 16px; line-height: 1.5; }
+  .modal-cle-input {
+    width: 100%; padding: 12px 14px; border: 2px solid var(--border);
+    border-radius: 8px; font-size: 13px; font-family: monospace; outline: none;
+    margin-bottom: 12px;
+  }
+  .modal-cle-input:focus { border-color: var(--or); }
+  .modal-cle-btn {
+    width: 100%; padding: 12px; background: var(--navy); color: white;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
+  }
 
   /* ── FILTRES ── */
   .filtres {
@@ -189,7 +218,22 @@
       <div class="header-sub">Résultats positionnement</div>
     </div>
     <div class="header-right">
+      <button class="btn-cle" id="btnCle" onclick="ouvrirModalCle()">🔑 Clé IA</button>
       <span class="badge-count" id="badgeCount">0 candidat(s)</span>
+    </div>
+  </div>
+
+  <!-- MODAL CLÉ API -->
+  <div class="modal-cle" id="modalCle">
+    <div class="modal-cle-box">
+      <div class="modal-cle-titre">🔑 Clé API Anthropic</div>
+      <div class="modal-cle-info">
+        Nécessaire pour l'analyse IA des candidats.<br>
+        Votre clé est stockée uniquement dans ce navigateur et n'est jamais envoyée ailleurs.<br>
+        Disponible sur <strong>console.anthropic.com</strong>
+      </div>
+      <input type="password" class="modal-cle-input" id="inputCle" placeholder="sk-ant-api03-..." />
+      <button class="modal-cle-btn" onclick="sauvegarderCle()">Enregistrer et activer l'IA</button>
     </div>
   </div>
 
@@ -356,6 +400,27 @@ function normaliserResultat(r, index) {
 // ── LOGIN ─────────────────────────────────────────────────────
 const CODE_VALIDE = 'JTCF2026';       // Code affiché à l'écran (simplifié)
 const CODE_SCRIPT = 'JTCF-ADMIN-2026'; // Code envoyé à Apps Script
+let CLE_API = localStorage.getItem('jtcf_api_key') || '';
+
+function ouvrirModalCle() {
+  document.getElementById('inputCle').value = CLE_API;
+  document.getElementById('modalCle').classList.add('open');
+}
+function sauvegarderCle() {
+  const cle = document.getElementById('inputCle').value.trim();
+  if (!cle) return;
+  CLE_API = cle;
+  localStorage.setItem('jtcf_api_key', cle);
+  document.getElementById('modalCle').classList.remove('open');
+  document.getElementById('btnCle').classList.add('ok');
+  document.getElementById('btnCle').textContent = '✅ IA active';
+}
+function mettreAJourBoutonCle() {
+  if (CLE_API) {
+    document.getElementById('btnCle').classList.add('ok');
+    document.getElementById('btnCle').textContent = '✅ IA active';
+  }
+}
 
 function seConnecter() {
   const code = document.getElementById('codeAcces').value.trim();
@@ -371,6 +436,7 @@ function seConnecter() {
 
 // ── CHARGEMENT ────────────────────────────────────────────────
 async function chargerResultats() {
+  mettreAJourBoutonCle();
   const afficher = (resultats) => {
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('screenAdmin').style.display = 'block';
@@ -606,10 +672,21 @@ Rédige l'analyse en 3 parties :
 
 Ton ton : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement. Maximum 220 mots.`;
 
+  if (!CLE_API) {
+    return {
+      html: '<em>Clé API manquante. Cliquez sur <strong>🔑 Clé IA</strong> en haut à droite pour la configurer.</em>',
+      reco: '—'
+    };
+  }
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': CLE_API,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -617,6 +694,7 @@ Ton ton : bienveillant(e), professionnel(le), orienté(e) vers l'accompagnement.
       })
     });
     const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
     const texteIA = data.content?.[0]?.text || '';
 
     // Extraire la recommandation
