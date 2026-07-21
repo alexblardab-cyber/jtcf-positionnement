@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JTCF — Résultats positionnement</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --navy:   #1A2E4A;
+    --navy2:  #2C4A70;
+    --or:     #C9A227;
+    --or2:    #F0C84A;
+    --bg:     #F5F7FA;
+    --card:   #FFFFFF;
+    --gris:   #718096;
+    --vert:   #1D9E75;
+    --rouge:  #C0392B;
+    --violet: #7C5CFF;
+    --border: #E2E8F0;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--navy); min-height: 100vh; }
+
+  /* ── LOGIN ── */
+  #screenLogin {
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--navy), var(--navy2));
+  }
+  .login-card {
+    background: white; border-radius: 20px; padding: 48px 40px; width: 360px;
+    text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+  .login-logo { font-size: 36px; margin-bottom: 8px; }
+  .login-titre { font-size: 20px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+  .login-sous  { font-size: 13px; color: var(--gris); margin-bottom: 28px; }
+  .login-input {
+    width: 100%; padding: 14px 16px; border: 2px solid var(--border);
+    border-radius: 10px; font-size: 15px; margin-bottom: 14px;
+    outline: none; transition: border-color .2s;
+  }
+  .login-input:focus { border-color: var(--or); }
+  .btn-login {
+    width: 100%; padding: 14px; background: var(--navy); color: white;
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-login:hover { background: var(--navy2); }
+  .login-err { font-size: 12px; color: var(--rouge); margin-top: 8px; display: none; }
+
+  /* ── HEADER ── */
+  #screenAdmin { display: none; }
+  .header {
+    background: var(--navy); color: white; padding: 0 24px;
+    display: flex; align-items: center; gap: 16px; height: 60px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-logo { font-size: 20px; font-weight: 800; color: var(--or); }
+  .header-sub  { font-size: 11px; opacity: .6; }
+  .header-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+  .badge-count {
+    background: var(--or); color: var(--navy); border-radius: 20px;
+    padding: 3px 12px; font-size: 12px; font-weight: 800;
+  }
+
+  /* ── FILTRES ── */
+  .filtres {
+    background: white; border-bottom: 1px solid var(--border);
+    padding: 14px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .filtre-label { font-size: 12px; font-weight: 700; color: var(--gris); text-transform: uppercase; letter-spacing: .5px; }
+  .filtre-select {
+    padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 8px;
+    font-size: 13px; color: var(--navy); background: white; cursor: pointer; outline: none;
+  }
+  .filtre-select:focus { border-color: var(--or); }
+  .btn-refresh {
+    margin-left: auto; padding: 8px 16px; background: var(--navy); color: white;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
+
+  /* ── LISTE ── */
+  .content { padding: 24px; max-width: 1200px; margin: 0 auto; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+  .stat-card {
+    background: white; border-radius: var(--radius); padding: 20px;
+    border-left: 4px solid var(--or);
+  }
+  .stat-val { font-size: 32px; font-weight: 800; color: var(--navy); }
+  .stat-lbl { font-size: 12px; color: var(--gris); margin-top: 2px; }
+
+  .candidats-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(320px,1fr)); gap: 16px; }
+  .candidat-card {
+    background: white; border-radius: var(--radius); padding: 20px;
+    border: 1.5px solid var(--border); cursor: pointer;
+    transition: border-color .2s, box-shadow .2s; position: relative;
+  }
+  .candidat-card:hover { border-color: var(--or); box-shadow: 0 4px 20px rgba(0,0,0,.08); }
+  .candidat-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .candidat-avatar {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--navy);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 800; color: white; flex-shrink: 0;
+  }
+  .candidat-nom  { font-size: 15px; font-weight: 700; }
+  .candidat-form { font-size: 11px; color: var(--or); font-weight: 600; margin-top: 2px; }
+  .candidat-date { font-size: 11px; color: var(--gris); margin-top: 1px; }
+  .score-badge {
+    position: absolute; top: 16px; right: 16px;
+    padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 800;
+  }
+  .score-vert   { background: #E6F4EE; color: var(--vert); }
+  .score-orange { background: #FFF3DC; color: #B7791F; }
+  .score-rouge  { background: #FEECEC; color: var(--rouge); }
+  .candidat-reco {
+    margin-top: 10px; padding: 8px 12px; border-radius: 8px;
+    font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .reco-favorable  { background: #E6F4EE; color: var(--vert); }
+  .reco-approfondir{ background: #FFF3DC; color: #B7791F; }
+  .reco-inadapte   { background: #FEECEC; color: var(--rouge); }
+  .loading-ia { color: var(--gris); font-size: 11px; font-style: italic; }
+
+  /* ── MODAL DÉTAIL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.5);
+    z-index: 200; display: none; align-items: flex-start; justify-content: center;
+    padding: 24px; overflow-y: auto;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: white; border-radius: 20px; width: 100%; max-width: 760px;
+    padding: 32px; margin: auto; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 20px; right: 20px;
+    width: 32px; height: 32px; border-radius: 50%; border: none;
+    background: var(--border); cursor: pointer; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-titre { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .modal-sous  { font-size: 13px; color: var(--gris); margin-bottom: 24px; }
+  .infos-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .info-item   { background: var(--bg); border-radius: 8px; padding: 12px; }
+  .info-lbl    { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--gris); margin-bottom: 3px; }
+  .info-val    { font-size: 14px; font-weight: 600; }
+  .section-titre { font-size: 14px; font-weight: 800; color: var(--navy); margin: 20px 0 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .radar-container { width: 280px; height: 280px; margin: 0 auto 24px; }
+  .analyse-box {
+    background: #F8F6FF; border: 1.5px solid #DDD6FE; border-radius: 12px;
+    padding: 16px; margin-bottom: 20px; font-size: 13px; line-height: 1.7; color: var(--navy);
+  }
+  .analyse-loading { color: var(--violet); font-style: italic; }
+  .reponse-item { border-bottom: 1px solid var(--border); padding: 12px 0; }
+  .reponse-q { font-size: 12px; font-weight: 700; color: var(--navy2); margin-bottom: 4px; }
+  .reponse-r { font-size: 13px; color: var(--navy); line-height: 1.5; }
+  .btn-pdf {
+    width: 100%; padding: 14px; background: var(--or); color: var(--navy);
+    border: none; border-radius: 10px; font-size: 14px; font-weight: 800;
+    cursor: pointer; margin-top: 20px; transition: background .2s;
+  }
+  .btn-pdf:hover { background: var(--or2); }
+
+  .empty-state { text-align: center; padding: 60px 24px; color: var(--gris); }
+  .empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<!-- ÉCRAN LOGIN -->
+<div id="screenLogin">
+  <div class="login-card">
+    <div class="login-logo">📊</div>
+    <div class="login-titre">Résultats positionnement</div>
+    <div class="login-sous">JT Conseil Formation — Accès réservé</div>
+    <input type="password" class="login-input" id="codeAcces" placeholder="Code d'accès" onkeydown="if(event.key==='Enter')seConnecter()">
+    <button class="btn-login" onclick="seConnecter()">Accéder aux résultats</button>
+    <div class="login-err" id="loginErr">Code incorrect</div>
+  </div>
+</div>
+
+<!-- ÉCRAN ADMIN -->
+<div id="screenAdmin">
+  <div class="header">
+    <div>
+      <div class="header-logo">JTCF</div>
+      <div class="header-sub">Résultats positionnement</div>
+    </div>
+    <div class="header-right">
+      <span class="badge-count" id="badgeCount">0 candidat(s)</span>
+    </div>
+  </div>
+
+  <div class="filtres">
+    <span class="filtre-label">Filtrer</span>
+    <select class="filtre-select" id="filtreFormation" onchange="filtrer()">
+      <option value="">Toutes les formations</option>
+    </select>
+    <select class="filtre-select" id="filtrePeriode" onchange="filtrer()">
+      <option value="">Toute période</option>
+      <option value="7">7 derniers jours</option>
+      <option value="30">30 derniers jours</option>
+      <option value="90">3 derniers mois</option>
+    </select>
+    <button class="btn-refresh" onclick="chargerResultats()">↻ Actualiser</button>
+  </div>
+
+  <div class="content">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="statTotal">—</div>
+        <div class="stat-lbl">Tests reçus</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--vert)">
+        <div class="stat-val" style="color:var(--vert)" id="statFavorables">—</div>
+        <div class="stat-lbl">Très favorables</div>
+      </div>
+      <div class="stat-card" style="border-color:#B7791F">
+        <div class="stat-val" style="color:#B7791F" id="statApprofondir">—</div>
+        <div class="stat-lbl">À approfondir</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--rouge)">
+        <div class="stat-val" style="color:var(--rouge)" id="statInadaptes">—</div>
+        <div class="stat-lbl">Inadaptés</div>
+      </div>
+    </div>
+
+    <div class="candidats-grid" id="listeCandidats">
+      <div class="empty-state"><div class="emoji">⏳</div><div>Chargement...</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DÉTAIL -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)fermerModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="fermerModal()">✕</button>
+    <div class="modal-titre" id="modalTitre">—</div>
+    <div class="modal-sous"  id="modalSous">—</div>
+    <div class="infos-grid" id="modalInfos"></div>
+    <div class="section-titre">Profil de compétences</div>
+    <div class="radar-container"><canvas id="radarChart"></canvas></div>
+    <div class="section-titre">Analyse IA</div>
+    <div class="analyse-box" id="analyseIA"><span class="analyse-loading">Analyse en cours...</span></div>
+    <div class="section-titre">Réponses complètes</div>
+    <div id="modalReponses"></div>
+    <button class="btn-pdf" onclick="genererPDF()">📄 Exporter le rapport PDF</button>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyDSiI8h1r-uiWHG5E_Ik8JkxA4RS9-s6bnQq4yCXtAojNUWrBCst5lLVCN1VYlhZOFKg/exec';
+let CODE_ACCES = '';
+let tousResultats = [];
+let resultatsAffiches = [];
+let candidatCourant = null;
+let radarInstance = null;
+
+// ── LOGIN ─────────────────────────────────────────────────────
+function seConnecter() {
+  const code = document.getElementById('codeAcces').value.trim();
+  if (!code) return;
+  CODE_ACCES = code;
+  document.getElementById('loginErr').style.display = 'none';
+  chargerResultats();
+}
+
+// ── CHARGEMENT ────────────────────────────────────────────────
+async function chargerResultats() {
+  try {
+    const url = SCRIPT_URL + '?action=list&code=' + encodeURIComponent(CODE_ACCES);
+    const r = await fetch(url);
+    const data = await r.json();
+    if (data.status === 'ERREUR') {
+      document.getElementById('loginErr').style.display = 'block';
+      return;
+    }
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenAdmin').style.display = 'block';
+    tousResultats = data.resultats || [];
+    peuplerFiltreFormation();
+    filtrer();
+  } catch(e) {
+    // Si Apps Script pas encore redéployé, utiliser données démo
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenAdmin').style.display = 'block';
+    tousResultats = donneesDEMO();
+    peuplerFiltreFormation();
+    filtrer();
+  }
+}
+
+function peuplerFiltreFormation() {
+  const sel = document.getElementById('filtreFormation');
+  const formations = [...new Set(tousResultats.map(r => r.formation))].sort();
+  formations.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f; opt.textContent = f;
+    sel.appendChild(opt);
+  });
+}
+
+function filtrer() {
+  const form = document.getElementById('filtreFormation').value;
+  const jours = parseInt(document.getElementById('filtrePeriode').value) || 0;
+  resultatsAffiches = tousResultats.filter(r => {
+    if (form && r.formation !== form) return false;
+    if (jours) {
+      const d = parseDate(r.date);
+      if (!d) return true;
+      return (Date.now() - d.getTime()) < jours * 86400000;
+    }
+    return true;
+  });
+  afficherListe();
+}
+
+function parseDate(str) {
+  if (!str) return null;
+  const p = str.split('/');
+  if (p.length === 3) return new Date(p[2], p[1]-1, p[0]);
+  return new Date(str);
+}
+
+// ── AFFICHAGE LISTE ───────────────────────────────────────────
+function scoreClass(pct) {
+  const n = parseInt(pct) || 0;
+  if (n >= 70) return 'score-vert';
+  if (n >= 40) return 'score-orange';
+  return 'score-rouge';
+}
+function recoClass(reco) {
+  if (!reco) return '';
+  if (reco.includes('Très favorable')) return 'reco-favorable';
+  if (reco.includes('approfondir')) return 'reco-approfondir';
+  return 'reco-inadapte';
+}
+function initiales(nom, prenom) {
+  return ((prenom||'')[0]||'') + ((nom||'')[0]||'');
+}
+
+function afficherListe() {
+  const container = document.getElementById('listeCandidats');
+  document.getElementById('badgeCount').textContent = resultatsAffiches.length + ' candidat(s)';
+
+  // Stats rapides basées sur score QCM
+  let fav=0, app=0, ina=0;
+  resultatsAffiches.forEach(r => {
+    const pct = parseInt(r.scorePct) || 0;
+    if (pct >= 70) fav++;
+    else if (pct >= 40) app++;
+    else ina++;
+  });
+  document.getElementById('statTotal').textContent = resultatsAffiches.length;
+  document.getElementById('statFavorables').textContent = fav;
+  document.getElementById('statApprofondir').textContent = app;
+  document.getElementById('statInadaptes').textContent = ina;
+
+  if (!resultatsAffiches.length) {
+    container.innerHTML = '<div class="empty-state"><div class="emoji">📭</div><div>Aucun résultat pour ces critères</div></div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  resultatsAffiches.forEach(r => {
+    const pct = r.scorePct || '—';
+    const sc = scoreClass(r.scorePct);
+    const ini = initiales(r.nom, r.prenom).toUpperCase();
+    const card = document.createElement('div');
+    card.className = 'candidat-card';
+    card.onclick = () => ouvrirModal(r);
+    card.innerHTML = `
+      ${r.scoreQCM ? `<div class="score-badge ${sc}">${r.scoreQCM} · ${pct}</div>` : ''}
+      <div class="candidat-header">
+        <div class="candidat-avatar">${ini}</div>
+        <div>
+          <div class="candidat-nom">${r.prenom} ${r.nom}</div>
+          <div class="candidat-form">${r.formation}</div>
+          <div class="candidat-date">📅 ${r.date} ${r.heure ? '· '+r.heure : ''}</div>
+        </div>
+      </div>
+      <div class="candidat-reco loading-ia" id="reco-${r.id}">Cliquer pour voir l'analyse IA →</div>`;
+    container.appendChild(card);
+  });
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+async function ouvrirModal(r) {
+  candidatCourant = r;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('modalTitre').textContent = r.prenom + ' ' + r.nom;
+  document.getElementById('modalSous').textContent = r.formation + ' · ' + r.date;
+
+  // Infos
+  document.getElementById('modalInfos').innerHTML = `
+    <div class="info-item"><div class="info-lbl">Date de naissance</div><div class="info-val">${r.ddn||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Téléphone</div><div class="info-val">${r.tel||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Email</div><div class="info-val">${r.email||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Niveau</div><div class="info-val">${r.niveau||'—'}</div></div>
+    <div class="info-item"><div class="info-lbl">Score QCM</div><div class="info-val">${r.scoreQCM||'—'} (${r.scorePct||'—'})</div></div>
+    <div class="info-item"><div class="info-lbl">Formation visée</div><div class="info-val">${r.formation}</div></div>`;
+
+  // Radar
+  dessinerRadar(r);
+
+  // Analyse IA
+  document.getElementById('analyseIA').innerHTML = '<span class="analyse-loading">Analyse IA en cours…</span>';
+  const analyse = await analyserAvecIA(r);
+  document.getElementById('analyseIA').innerHTML = analyse.html;
+
+  // Mettre à jour la carte dans la liste
+  const recoEl = document.getElementById('reco-' + r.id);
+  if (recoEl) {
+    recoEl.className = 'candidat-reco ' + recoClass(analyse.reco);
+    recoEl.textContent = analyse.reco || 'Analyse effectuée';
+  }
+
+  // Réponses
+  afficherReponses(r);
+}
+
+function fermerModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  candidatCourant = null;
+}
+
+// ── RADAR ─────────────────────────────────────────────────────
+function dessinerRadar(r) {
+  const pct = parseInt(r.scorePct) || 0;
+  const texte = r.reponses || '';
+  // Estimation heuristique des axes à partir du texte et score
+  const nMots = texte.split(' ').length;
+  const connaissances = Math.min(100, pct);
+  const communication = Math.min(100, nMots > 300 ? 75 : nMots > 150 ? 55 : 35);
+  const logique = Math.min(100, pct * 1.1);
+  const motivation = texte.toLowerCase().includes('passion') || texte.toLowerCase().includes('souhait') ? 80 : 60;
+  const posture = texte.length > 200 ? 70 : 45;
+
+  if (radarInstance) radarInstance.destroy();
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  radarInstance = new Chart(ctx, {
+    type: 'radar',
+    data: {
+      labels: ['Connaissances\nmétier', 'Communication', 'Logique /\ncalcul', 'Motivation', 'Posture\nprofessionnelle'],
+      datasets: [{
+        data: [connaissances, communication, logique, motivation, posture],
+        backgroundColor: 'rgba(201,162,39,0.15)',
+        borderColor: '#C9A227',
+        borderWidth: 2,
+        pointBackgroundColor: '#C9A227',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      scales: { r: { min:0, max:100, ticks: { display: false }, pointLabels: { font: { size: 11 } } } },
+      plugins: { legend: { display: false } },
+      responsive: true,
+    }
+  });
+}
+
+// ── ANALYSE IA ────────────────────────────────────────────────
+async function analyserAvecIA(r) {
+  // Extraire les réponses ouvertes et situations du texte brut
+  const texte = r.reponses || '';
+  const lignes = texte.split('\n').filter(l => l.trim());
+  const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
+
+  const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
+Analyse le test de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
+
+Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
+Niveau scolaire : ${r.niveau || 'non renseigné'}
+
+Réponses ouvertes et situations :
+${repOuvertes || texte.substring(0, 2000)}
+
+Donne une analyse structurée en 3 parties :
+1. POINTS FORTS (2-3 éléments)
+2. POINTS DE VIGILANCE (1-2 éléments)  
+3. RECOMMANDATION : commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)"
+
+Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const texteIA = data.content?.[0]?.text || '';
+
+    // Extraire la recommandation
+    let reco = '—';
+    if (texteIA.includes('Très favorable')) reco = '✅ Très favorable';
+    else if (texteIA.includes('À approfondir')) reco = '⚠️ À approfondir';
+    else if (texteIA.includes('Inadapté')) reco = '❌ Inadapté(e)';
+
+    // Formater le texte
+    const html = texteIA
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
+    return { html: '<p>' + html + '</p>', reco };
+  } catch(e) {
+    return {
+      html: '<em>Analyse IA indisponible. Vérifiez la connexion.</em>',
+      reco: parseInt(r.scorePct) >= 70 ? '✅ Très favorable' : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '❌ Score faible'
+    };
+  }
+}
+
+// ── RÉPONSES ──────────────────────────────────────────────────
+function afficherReponses(r) {
+  const container = document.getElementById('modalReponses');
+  const texte = r.reponses || '';
+  const lignes = texte.split('\n');
+  let html = '';
+  let questionCourante = '';
+  for (const ligne of lignes) {
+    if (ligne.startsWith('Q') && ligne.includes('[') && ligne.includes(']')) {
+      questionCourante = ligne;
+    } else if (ligne.startsWith('→') && questionCourante) {
+      const typeMatch = questionCourante.match(/\[(\w+)\]/);
+      const type = typeMatch ? typeMatch[1] : '';
+      if (type === 'SITUATION' || type === 'OPEN' || type === 'CALCUL') {
+        html += `<div class="reponse-item">
+          <div class="reponse-q">${questionCourante.replace(/Q\d+ \[\w+\] : /, '')}</div>
+          <div class="reponse-r">${ligne.replace('→','').trim() || '<em>Sans réponse</em>'}</div>
+        </div>`;
+      }
+    }
+  }
+  container.innerHTML = html || '<div style="color:var(--gris);font-size:13px;">Réponses disponibles dans le texte brut ci-dessus.</div>';
+}
+
+// ── PDF ───────────────────────────────────────────────────────
+async function genererPDF() {
+  const r = candidatCourant;
+  if (!r) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const BF=[26,46,74], OR=[201,162,39], GRIS=[113,128,150], VERT=[29,158,117], ROUGE=[192,57,43], BLANC=[255,255,255];
+
+  // En-tête
+  doc.setFillColor(...BF); doc.rect(0,0,210,35,'F');
+  doc.setTextColor(...OR); doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text('JT CONSEIL FORMATION', 20, 14);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...BLANC);
+  doc.text('Saint-Joseph · La Réunion · Rapport de positionnement', 20, 21);
+  doc.setFontSize(11); doc.setFont('helvetica','bold'); doc.setTextColor(...OR);
+  doc.text('TEST DE POSITIONNEMENT — ' + r.formation.toUpperCase(), 20, 30);
+
+  // Infos candidat
+  doc.setFillColor(245,247,250); doc.rect(15,40,180,38,'F');
+  doc.setTextColor(...BF); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text(r.prenom + ' ' + r.nom, 20, 52);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS);
+  doc.text('Formation : ' + r.formation, 20, 59);
+  doc.text('Date : ' + r.date + '   ·   Niveau : ' + (r.niveau||'—'), 20, 65);
+  doc.text('Tél : ' + (r.tel||'—') + '   ·   Email : ' + (r.email||'—'), 20, 71);
+
+  // Score QCM
+  const pct = parseInt(r.scorePct) || 0;
+  const coulScore = pct >= 70 ? VERT : pct >= 40 ? [183,121,31] : ROUGE;
+  doc.setFillColor(...coulScore); doc.rect(150,40,45,38,'F');
+  doc.setTextColor(...BLANC); doc.setFontSize(24); doc.setFont('helvetica','bold');
+  doc.text(r.scorePct || '—', 172, 56, {align:'center'});
+  doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('Score QCM', 172, 63, {align:'center'});
+  doc.text(r.scoreQCM || '', 172, 69, {align:'center'});
+
+  // Analyse IA
+  const analyseTexte = document.getElementById('analyseIA').textContent;
+  doc.setTextColor(...BF); doc.setFontSize(11); doc.setFont('helvetica','bold');
+  doc.text('Analyse du conseiller IA', 20, 90);
+  doc.setLineWidth(0.5); doc.setDrawColor(...OR); doc.line(20,92,190,92);
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(...GRIS);
+  const lignesAnalyse = doc.splitTextToSize(analyseTexte, 170);
+  doc.text(lignesAnalyse, 20, 98);
+
+  // Pied de page
+  doc.setFillColor(...BF); doc.rect(0,280,210,17,'F');
+  doc.setTextColor(...BLANC); doc.setFontSize(8);
+  doc.text('JTCF · 20a rue du Général Lambert · 97480 Saint-Joseph · contact@tbrgroup.fr', 20, 291);
+  doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 190, 291, {align:'right'});
+
+  doc.save('JTCF_Positionnement_' + r.prenom + '_' + r.nom + '.pdf');
+}
+
+// ── DONNÉES DÉMO (si Apps Script pas encore redéployé) ────────
+function donneesDEMO() {
+  return [
+    { id:1, date:'17/07/2026', heure:'09:14', formation:'Conseiller(ère) de Vente', formationId:'CV',
+      nom:'Dupont', prenom:'Marie', ddn:'15/03/2000', tel:'0692 123 456', email:'marie.dupont@email.re',
+      niveau:'Bac', scoreQCM:'8/10', scorePct:'80%',
+      reponses: 'FORMATION : Conseiller(ère) de Vente\nCANDIDAT : Marie Dupont\n---\nQ1 [QCM] : Qu\'est-ce que la méthode CAB ?\n→ Caractéristiques, Avantages, Bénéfices\nQ11 [OPEN] : Qu\'est-ce qui vous attire dans le métier ?\n→ J\'adore le contact avec les clients et j\'ai déjà travaillé en boutique pendant 2 ans. La vente me passionne vraiment.\nQ18 [SITUATION] : Un client hésite entre deux produits...\n→ J\'écoute ses besoins, je présente les avantages de chaque option et je l\'aide à choisir selon son budget.' },
+    { id:2, date:'16/07/2026', heure:'14:30', formation:'Employé(e) Commercial(e)', formationId:'EC',
+      nom:'Martin', prenom:'Kevin', ddn:'20/09/1998', tel:'0693 456 789', email:'kevin.martin@email.re',
+      niveau:'CAP', scoreQCM:'4/10', scorePct:'40%',
+      reponses: 'FORMATION : Employé(e) Commercial(e)\nCANDIDAT : Kevin Martin\n---\nQ1 [QCM] : Qu\'est-ce que la mise en rayon ?\n→ Ranger les produits en réserve\nQ11 [OPEN] : Pourquoi souhaitez-vous vous former ?\n→ Parce que je cherche du travail et que c\'est une formation disponible.\nQ18 [SITUATION] : Un client signale un écart de prix...\n→ Je le dirige vers la caisse.' },
+  ];
+}
+</script>
+</body>
+</html>
