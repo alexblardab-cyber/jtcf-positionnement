@@ -268,6 +268,82 @@ function seConnecter() {
 }
 
 
+
+// ══════════════════════════════════════════════════════════════
+//  CORRIGÉ DES QCM — permet de recalculer le score depuis le texte
+//  des réponses, y compris pour les tests passés avant que le
+//  formulaire n'enregistre les rangs des options choisies.
+// ══════════════════════════════════════════════════════════════
+const CORRIGE_QCM = {
+  "Qu'est-ce que la mise en rayon ?": "Disposer les produits sur les étagères",
+  "Quelle est la première étape d'un accueil client réussi ?": "Sourire et saluer le client",
+  "Qu'est-ce qu'un facing ?": "La surface visible d'un produit en rayon",
+  "À quoi sert une étiquette de gondole ?": "Indiquer le prix et la référence",
+  "Que signifie FIFO dans la gestion des stocks ?": "Premier entré, premier sorti",
+  "Qu'est-ce qu'un linéaire en grande distribution ?": "L'espace de présentation des produits",
+  "Comment s'appelle l'opération qui consiste à compter les produits en stock ?": "L'inventaire",
+  "Que faire face à un client mécontent en magasin ?": "L'écouter calmement et chercher une solution",
+  "Qu'est-ce qu'un bon de livraison (BL) ?": "Un document accompagnant une livraison fournisseur",
+  "Quel geste est interdit lors de la manipulation des denrées alimentaires ?": "Manger au-dessus des produits",
+  "Qu'est-ce que la méthode CAB en vente ?": "Caractéristiques, Avantages, Bénéfices",
+  "Quel est l'objectif principal d'une phase de découverte client ?": "Identifier les besoins et motivations du client",
+  "Qu'est-ce que la vente additionnelle (cross-selling) ?": "Proposer un produit complémentaire",
+  "Comment s'appelle la résistance exprimée par le client face à une proposition ?": "Une objection",
+  "Que signifie le taux de transformation en commerce ?": "Le ratio entre visiteurs et acheteurs",
+  "Quelle attitude adopt-on lors d'une écoute active ?": "Reformuler et questionner pour comprendre",
+  "Qu'est-ce qu'un argumentaire de vente ?": "Un outil structurant les arguments pour convaincre",
+  "À quel moment peut-on proposer une montée en gamme (upselling) ?": "Lors de la découverte ou présentation du produit",
+  "Quelle est la différence entre un besoin exprimé et un besoin latent ?": "Le besoin exprimé est dit clairement, le latent est implicite",
+  "Qu'est-ce qu'un plan de vente ?": "Les étapes structurées d'un entretien de vente",
+  "Qu'est-ce que l'insertion professionnelle ?": "L'ensemble des processus permettant d'accéder ou de se maintenir dans l'emploi",
+  "Qu'est-ce qu'un diagnostic de situation professionnelle ?": "Une analyse de la situation d'emploi et des compétences d'une personne",
+  "Quelle différence entre France Travail (ex-Pôle Emploi) et une Mission Locale ?": "France Travail s'adresse aux demandeurs d'emploi, la Mission Locale aux jeunes 16-25 ans",
+  "Qu'est-ce qu'un atelier collectif en insertion ?": "Une séance de groupe visant à travailler des compétences (CV, entretien...)",
+  "Qu'est-ce que le RSA ?": "Le Revenu de Solidarité Active, une aide pour les personnes à faibles ressources",
+  "Qu'est-ce qu'un projet professionnel ?": "La projection d'une personne vers un métier cible basée sur ses compétences",
+  "Qu'est-ce qu'une compétence transversale (soft skill) ?": "Une compétence comportementale applicable dans de nombreux contextes",
+  "Quel document formalise le parcours d'accompagnement entre un conseiller et un bénéficiaire ?": "Un Contrat d'Engagement Réciproque (CER) ou plan d'action personnalisé",
+  "Qu'est-ce que la VAE (Validation des Acquis de l'Expérience) ?": "Un dispositif pour obtenir un diplôme grâce à son expérience professionnelle",
+  "Quelle posture est fondamentale dans la relation d'aide en insertion ?": "L'écoute active, l'empathie et la non-directivité",
+  "Qu'est-ce qu'une communication professionnelle efficace ?": "Adapter son message à son interlocuteur et écouter activement",
+  "Que signifie 'travail en équipe' dans un contexte professionnel ?": "Collaborer, partager les informations et se soutenir mutuellement",
+  "Qu'est-ce que la ponctualité dans le monde du travail ?": "Respecter les horaires convenus et les délais",
+  "Comment définit-on la confidentialité professionnelle ?": "Ne pas divulguer les informations professionnelles sensibles en dehors du cadre prévu",
+  "Qu'est-ce qu'un objectif SMART ?": "Spécifique, Mesurable, Atteignable, Réaliste, Temporel",
+  "Qu'est-ce qu'un entretien annuel d'évaluation ?": "Un bilan formalisé des performances et objectifs d'un collaborateur",
+  "Comment réagir face à une erreur professionnelle ?": "L'assumer, la corriger et en tirer des leçons",
+  "Qu'est-ce que la gestion du stress en milieu professionnel ?": "Identifier les sources de stress et mettre en place des stratégies pour y faire face",
+  "Qu'est-ce que l'adaptabilité professionnelle ?": "Savoir s'ajuster à de nouvelles situations, outils ou méthodes de travail"
+};
+
+function normaliserTexte(s){
+  return String(s||'')
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // accents
+    .replace(/[^a-z0-9 ]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+// Recalcule le score QCM à partir du texte brut des réponses
+function scoreQCMDepuisReponses(texte){
+  var lignes = String(texte||'').split('\n');
+  var total = 0, bons = 0, reconnues = 0;
+  for (var i = 0; i < lignes.length; i++){
+    if (lignes[i].indexOf('[QCM]') < 0) continue;
+    var q = lignes[i].replace(/^Q\d+\s*\[QCM\]\s*:\s*/, '').trim();
+    var bonne = CORRIGE_QCM[q];
+    if (bonne === undefined) continue;        // question hors corrigé
+    reconnues++;
+    total++;
+    var rep = (lignes[i+1] || '').replace('\u2192','').trim();
+    if (!rep || rep === '(Sans réponse)') continue;
+    if (normaliserTexte(rep) === normaliserTexte(bonne)) bons++;
+  }
+  if (reconnues === 0) return null;
+  return { score: bons, total: total, pct: Math.round(bons / total * 100) };
+}
+
 // ══════════════════════════════════════════════════════════════
 //  NORMALISATION — répare les lignes dont les colonnes sont décalées
 //  Le champ "reponses" contient un en-tête écrit par le formulaire :
@@ -315,6 +391,15 @@ function normaliserResultat(r){
   if (fTel)    o.tel    = fTel;
   if (fEmail)  o.email  = fEmail;
   if (fNiveau) o.niveau = fNiveau;
+
+  // Score QCM : recalculé depuis le texte si la feuille n'en contient pas,
+  // ou si la valeur enregistrée est une estimation par mots-clés (0/10 douteux)
+  var sc = scoreQCMDepuisReponses(txt);
+  if (sc && (!o.scoreQCM || String(o.scoreQCM).indexOf('/') < 0 || sc.score > 0)) {
+    o.scoreQCM = sc.score + '/' + sc.total;
+    o.scorePct = sc.pct + '%';
+    o.scoreRecalcule = true;
+  }
 
   // Une date ISO résiduelle est reformatée en jj/mm/aaaa
   if (ressembleADate(o.date)){
