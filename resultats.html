@@ -419,8 +419,9 @@ function afficherListe() {
   document.getElementById('badgeCount').textContent = resultatsAffiches.length + ' candidat(s)';
 
   // Stats rapides basées sur score QCM
-  let fav=0, app=0, ina=0;
+  let fav=0, app=0, ina=0, nonEval=0;
   resultatsAffiches.forEach(r => {
+    if (!r.scoreQCM || !r.scorePct) { nonEval++; return; }   // aucune donnée de QCM
     const pct = parseInt(r.scorePct) || 0;
     if (pct >= 70) fav++;
     else if (pct >= 40) app++;
@@ -445,7 +446,8 @@ function afficherListe() {
     card.className = 'candidat-card';
     card.onclick = () => ouvrirModal(r);
     card.innerHTML = `
-      ${r.scoreQCM ? `<div class="score-badge ${sc}">${r.scoreQCM} · ${pct}</div>` : ''}
+      ${r.scoreQCM ? `<div class="score-badge ${sc}">${r.scoreQCM} · ${pct}</div>`
+                   : `<div class="score-badge" style="background:#EDF2F7;color:#4A5568;">QCM non évalué</div>`}
       <div class="candidat-header">
         <div class="candidat-avatar">${ini}</div>
         <div>
@@ -584,9 +586,18 @@ Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
 
     return { html: '<p>' + html + '</p>', reco };
   } catch(e) {
+    // L'API ne peut pas être appelée depuis un navigateur : on l'annonce clairement
+    // plutôt que d'afficher un verdict fondé sur un score inexistant.
+    const aScore = !!(r.scoreQCM && r.scorePct);
     return {
-      html: '<em>Analyse IA indisponible. Vérifiez la connexion.</em>',
-      reco: parseInt(r.scorePct) >= 70 ? '✅ Très favorable' : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '❌ Score faible'
+      html: '<em>Analyse automatique non disponible.</em><br><br>' +
+            'L\'appel à l\'API ne peut pas être effectué depuis le navigateur. ' +
+            'Les réponses complètes du candidat restent consultables ci-dessous.',
+      reco: aScore
+        ? (parseInt(r.scorePct) >= 70 ? '✅ Très favorable'
+           : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir'
+           : '⚠️ Score QCM faible')
+        : '📄 Voir les réponses'
     };
   }
 }
