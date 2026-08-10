@@ -64,35 +64,6 @@
     background: var(--or); color: var(--navy); border-radius: 20px;
     padding: 3px 12px; font-size: 12px; font-weight: 800;
   }
-  .btn-cle {
-    padding: 6px 12px; background: rgba(255,255,255,0.15); color: white;
-    border: 1px solid rgba(255,255,255,0.3); border-radius: 8px;
-    font-size: 12px; cursor: pointer;
-  }
-  .btn-cle.ok { background: rgba(29,158,117,0.4); border-color: var(--vert); }
-
-  /* ── MODAL CLÉ API ── */
-  .modal-cle {
-    position: fixed; inset: 0; background: rgba(0,0,0,.6);
-    z-index: 300; display: none; align-items: center; justify-content: center;
-  }
-  .modal-cle.open { display: flex; }
-  .modal-cle-box {
-    background: white; border-radius: 16px; padding: 32px; width: 440px;
-    box-shadow: 0 20px 60px rgba(0,0,0,.3);
-  }
-  .modal-cle-titre { font-size: 16px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
-  .modal-cle-info  { font-size: 12px; color: var(--gris); margin-bottom: 16px; line-height: 1.5; }
-  .modal-cle-input {
-    width: 100%; padding: 12px 14px; border: 2px solid var(--border);
-    border-radius: 8px; font-size: 13px; font-family: monospace; outline: none;
-    margin-bottom: 12px;
-  }
-  .modal-cle-input:focus { border-color: var(--or); }
-  .modal-cle-btn {
-    width: 100%; padding: 12px; background: var(--navy); color: white;
-    border: none; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer;
-  }
 
   /* ── FILTRES ── */
   .filtres {
@@ -151,19 +122,6 @@
   .reco-approfondir{ background: #FFF3DC; color: #B7791F; }
   .reco-inadapte   { background: #FEECEC; color: var(--rouge); }
   .loading-ia { color: var(--gris); font-size: 11px; font-style: italic; }
-
-  /* ── FORMATIONS ALTERNATIVES ── */
-  .altern-box {
-    background: #F0F7FF; border: 1.5px solid #BEE3F8; border-radius: 12px;
-    padding: 16px; margin-top: 16px;
-  }
-  .altern-titre { font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 12px; }
-  .altern-item  { margin-bottom: 10px; }
-  .altern-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-  .altern-nom   { font-size: 12px; font-weight: 600; color: var(--navy); }
-  .altern-pct   { font-size: 12px; font-weight: 800; color: var(--navy2); }
-  .altern-bar   { height: 6px; background: var(--border); border-radius: 4px; overflow: hidden; }
-  .altern-fill  { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--navy2), var(--or)); transition: width .6s ease; }
 
   /* ── MODAL DÉTAIL ── */
   .modal-overlay {
@@ -235,20 +193,6 @@
     </div>
   </div>
 
-  <!-- MODAL CLÉ API -->
-  <div class="modal-cle" id="modalCle">
-    <div class="modal-cle-box">
-      <div class="modal-cle-titre">🔑 Clé API Anthropic</div>
-      <div class="modal-cle-info">
-        Nécessaire pour l'analyse IA des candidats.<br>
-        Votre clé est stockée uniquement dans ce navigateur et n'est jamais envoyée ailleurs.<br>
-        Disponible sur <strong>console.anthropic.com</strong>
-      </div>
-      <input type="password" class="modal-cle-input" id="inputCle" placeholder="sk-ant-api03-..." />
-      <button class="modal-cle-btn" onclick="sauvegarderCle()">Enregistrer et activer l'IA</button>
-    </div>
-  </div>
-
   <div class="filtres">
     <span class="filtre-label">Filtrer</span>
     <select class="filtre-select" id="filtreFormation" onchange="filtrer()">
@@ -300,7 +244,6 @@
     <div class="radar-container"><canvas id="radarChart"></canvas></div>
     <div class="section-titre">Analyse IA</div>
     <div class="analyse-box" id="analyseIA"><span class="analyse-loading">Analyse en cours...</span></div>
-    <div id="sectAlternatives"></div>
     <div class="section-titre">Réponses complètes</div>
     <div id="modalReponses"></div>
     <button class="btn-pdf" onclick="genererPDF()">📄 Exporter le rapport PDF</button>
@@ -315,160 +258,110 @@ let resultatsAffiches = [];
 let candidatCourant = null;
 let radarInstance = null;
 
-// ── NORMALISATION DES DONNÉES ────────────────────────────────
-// Colonnes Google Sheet : A=Date, B=Formation, C=Nom, D=Prénom,
-//                         E=DDN, F=Téléphone, G=Email, H=Niveau, I=Réponses
-//
-// Le script Apps Script renvoie un objet avec les champs DÉCALÉS :
-//   r.heure     → contient la Formation (col B)
-//   r.formation → contient le Nom       (col C)
-//   r.nom       → contient la DDN       (col E)
-//   r.prenom    → contient le Téléphone (col F)
-//   r.ddn       → contient l'Email      (col G)
-//   r.tel       → contient le Niveau    (col H)
-//   r.email     → contient les Réponses (col I)
-//   (col D = Prénom non mappé par le script)
-function normaliserResultat(r, index) {
-  // Cas 1 : Apps Script renvoie un tableau (row values)
-  if (Array.isArray(r)) {
-    return {
-      id:        index + 1,
-      date:      String(r[0] || ''),
-      formation: String(r[1] || ''),
-      nom:       String(r[2] || ''),
-      prenom:    String(r[3] || ''),
-      ddn:       String(r[4] || ''),
-      tel:       String(r[5] || ''),
-      email:     String(r[6] || ''),
-      niveau:    String(r[7] || ''),
-      reponses:  String(r[8] || ''),
-      scoreQCM:  String(r[9] || ''),
-      scorePct:  String(r[10] || ''),
-      heure:     '',
-    };
-  }
-
-  // Cas 2 : Apps Script renvoie un objet avec des noms de colonnes lettres (A, B, C…)
-  if (r.A !== undefined) {
-    return {
-      id:        r.id || index + 1,
-      date:      String(r.A || ''),
-      formation: String(r.B || ''),
-      nom:       String(r.C || ''),
-      prenom:    String(r.D || ''),
-      ddn:       String(r.E || ''),
-      tel:       String(r.F || ''),
-      email:     String(r.G || ''),
-      niveau:    String(r.H || ''),
-      reponses:  String(r.I || ''),
-      scoreQCM:  String(r.J || ''),
-      scorePct:  String(r.K || ''),
-      heure:     '',
-    };
-  }
-
-  // Cas 3 : objet Apps Script avec champs décalés (mapping constaté)
-  // Détection : r.heure contient un nom de formation (pas un horaire)
-  const heureEstFormation = r.heure && !/^\d{1,2}h\d{2}|^\d{1,2}:\d{2}/.test(String(r.heure));
-  if (heureEstFormation) {
-    // Trouver le champ contenant les réponses = le plus long champ texte
-    const tousChamps = Object.entries(r).filter(([,v]) => typeof v === 'string');
-    const champReponses = tousChamps.sort((a,b) => b[1].length - a[1].length)[0];
-    const texteReponses = champReponses ? champReponses[1] : '';
-    return {
-      id:        r.id || index + 1,
-      date:      String(r.date      || ''),
-      formation: String(r.heure     || ''),   // heure contient la Formation
-      nom:       String(r.formation || ''),   // formation contient le Nom
-      prenom:    String(r.prenom_reel || ''), // Prénom non mappé par le script
-      ddn:       String(r.nom       || ''),   // nom contient la DDN
-      tel:       String(r.prenom    || ''),   // prenom contient le Téléphone
-      email:     String(r.ddn       || ''),   // ddn contient l'Email
-      niveau:    String(r.tel       || ''),   // tel contient le Niveau
-      reponses:  texteReponses,               // champ le plus long = réponses
-      scoreQCM:  String(r.scoreQCM  || ''),
-      scorePct:  String(r.scorePct  || ''),
-      heure:     '',
-    };
-  }
-
-  // Cas 4 : objet correctement nommé — passage direct
-  return {
-    id:        r.id || index + 1,
-    date:      String(r.date      || r.Date      || ''),
-    formation: String(r.formation || r.Formation || ''),
-    nom:       String(r.nom       || r.Nom       || ''),
-    prenom:    String(r.prenom    || r.Prenom    || r.Prénom || ''),
-    ddn:       String(r.ddn       || r.DDN       || ''),
-    tel:       String(r.tel       || r.Tel       || r.Telephone || r.Téléphone || ''),
-    email:     String(r.email     || r.Email     || ''),
-    niveau:    String(r.niveau    || r.Niveau    || ''),
-    reponses:  String(r.reponses  || r.Réponses  || ''),
-    scoreQCM:  String(r.scoreQCM  || ''),
-    scorePct:  String(r.scorePct  || ''),
-    heure:     String(r.heure     || ''),
-  };
-}
-
 // ── LOGIN ─────────────────────────────────────────────────────
-const CODE_VALIDE = 'JTCF2026';       // Code affiché à l'écran (simplifié)
-const CODE_SCRIPT = 'JTCF-ADMIN-2026'; // Code envoyé à Apps Script
-let CLE_API = localStorage.getItem('jtcf_api_key') || '';
-
-function ouvrirModalCle() {
-  document.getElementById('inputCle').value = CLE_API;
-  document.getElementById('modalCle').classList.add('open');
-}
-function sauvegarderCle() {
-  const cle = document.getElementById('inputCle').value.trim();
-  if (!cle) return;
-  CLE_API = cle;
-  localStorage.setItem('jtcf_api_key', cle);
-  document.getElementById('modalCle').classList.remove('open');
-  document.getElementById('btnCle').classList.add('ok');
-  document.getElementById('btnCle').textContent = '✅ IA active';
-}
-function mettreAJourBoutonCle() {
-  if (CLE_API) {
-    document.getElementById('btnCle').classList.add('ok');
-    document.getElementById('btnCle').textContent = '✅ IA active';
-  }
-}
-
 function seConnecter() {
   const code = document.getElementById('codeAcces').value.trim();
   if (!code) return;
-  if (code !== CODE_VALIDE) {
-    document.getElementById('loginErr').style.display = 'block';
-    return;
-  }
   CODE_ACCES = code;
   document.getElementById('loginErr').style.display = 'none';
   chargerResultats();
 }
 
+
+// ══════════════════════════════════════════════════════════════
+//  NORMALISATION — répare les lignes dont les colonnes sont décalées
+//  Le champ "reponses" contient un en-tête écrit par le formulaire :
+//    FORMATION : … / CANDIDAT : … / DATE : … / DDN / TEL / EMAIL / NIVEAU
+//  Il ne dépend d'aucune colonne : c'est notre source de vérité.
+// ══════════════════════════════════════════════════════════════
+function champEntete(txt, cle){
+  if(!txt) return '';
+  var m = txt.match(new RegExp('^\\s*'+cle+'\\s*:\\s*(.+)$','mi'));
+  if(!m) return '';
+  var v = m[1].trim();
+  if(/^non renseign/i.test(v)) return '';
+  return v;
+}
+
+// Une valeur qui ressemble à une date ISO ou à l'époque Excel n'est pas un intitulé
+function ressembleADate(v){
+  return typeof v === 'string' && (/^\d{4}-\d{2}-\d{2}T/.test(v) || /^1899-12-30/.test(v));
+}
+
+function normaliserResultat(r){
+  var txt = r.reponses || '';
+  var o = Object.assign({}, r);
+
+  var fFormation = champEntete(txt, 'FORMATION');
+  var fCandidat  = champEntete(txt, 'CANDIDAT');
+  var fDate      = champEntete(txt, 'DATE');
+  var fDdn       = champEntete(txt, 'DDN');
+  var fTel       = champEntete(txt, 'TEL');
+  var fEmail     = champEntete(txt, 'EMAIL');
+  var fNiveau    = champEntete(txt, 'NIVEAU');
+
+  if (fFormation) o.formation = fFormation;
+  else if (ressembleADate(o.formation) && o.nom) { o.formation = o.nom; o.nom = ''; }
+
+  if (fCandidat){
+    var parts = fCandidat.split(/\s+/);
+    o.prenom = parts.shift() || '';
+    o.nom    = parts.join(' ');
+    if(!o.nom){ o.nom = o.prenom; o.prenom = ''; }   // un seul mot fourni
+  }
+
+  if (fDate)   o.date   = fDate;
+  if (fDdn)    o.ddn    = fDdn;
+  if (fTel)    o.tel    = fTel;
+  if (fEmail)  o.email  = fEmail;
+  if (fNiveau) o.niveau = fNiveau;
+
+  // Une date ISO résiduelle est reformatée en jj/mm/aaaa
+  if (ressembleADate(o.date)){
+    var d = new Date(o.date);
+    if(!isNaN(d)) o.date = ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+  }
+  // L'heure éventuellement piégée dans un champ texte
+  if (ressembleADate(o.heure)){
+    var hh = new Date(o.heure);
+    if(!isNaN(hh)) o.heure = ('0'+hh.getHours()).slice(-2)+':'+('0'+hh.getMinutes()).slice(-2);
+  }
+  return o;
+}
+
+function normaliserTout(liste){
+  var repares = 0;
+  var out = (liste||[]).map(function(r){
+    var n = normaliserResultat(r);
+    if (n.formation !== r.formation || n.nom !== r.nom || n.prenom !== r.prenom) repares++;
+    return n;
+  });
+  if (repares > 0) console.info('[JTCF] ' + repares + ' résultat(s) réalignés depuis l\'en-tête des réponses.');
+  return out;
+}
+
 // ── CHARGEMENT ────────────────────────────────────────────────
 async function chargerResultats() {
-  mettreAJourBoutonCle();
-  const afficher = (resultats) => {
-    document.getElementById('screenLogin').style.display = 'none';
-    document.getElementById('screenAdmin').style.display = 'block';
-    tousResultats = resultats;
-    peuplerFiltreFormation();
-    filtrer();
-  };
   try {
-    // On envoie le code Apps Script (pas le code simplifié affiché à l'écran)
-    const url = SCRIPT_URL + '?action=list&code=' + encodeURIComponent(CODE_SCRIPT);
+    const url = SCRIPT_URL + '?action=list&code=' + encodeURIComponent(CODE_ACCES);
     const r = await fetch(url);
     const data = await r.json();
-    if (data.status === 'ERREUR' || !data.resultats) {
-      afficher(donneesDEMO());
+    if (data.status === 'ERREUR') {
+      document.getElementById('loginErr').style.display = 'block';
       return;
     }
-    afficher((data.resultats || []).map(normaliserResultat));
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenAdmin').style.display = 'block';
+    tousResultats = normaliserTout(data.resultats || []);
+    peuplerFiltreFormation();
+    filtrer();
   } catch(e) {
-    afficher(donneesDEMO());
+    // Si Apps Script pas encore redéployé, utiliser données démo
+    document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenAdmin').style.display = 'block';
+    tousResultats = normaliserTout(donneesDEMO());
+    peuplerFiltreFormation();
+    filtrer();
   }
 }
 
@@ -521,100 +414,16 @@ function initiales(nom, prenom) {
   return ((prenom||'')[0]||'') + ((nom||'')[0]||'');
 }
 
-function extraireReponses(texte) {
-  // Extraire uniquement les lignes de réponses (→) par type de question
-  const lignes = texte.split('\n');
-  const reponses = { QCM: [], OPEN: [], SITUATION: [], CALCUL: [], LOGIQUE: [], COMPREHENSION: [], all: [] };
-  let typeActuel = '';
-  for (const ligne of lignes) {
-    const mType = ligne.match(/\[(QCM|OPEN|SITUATION|CALCUL|LOGIQUE|COMPREHENSION)\]/);
-    if (mType) typeActuel = mType[1];
-    if (ligne.startsWith('→')) {
-      const rep = ligne.replace('→', '').trim();
-      reponses.all.push(rep);
-      if (typeActuel) reponses[typeActuel]?.push(rep);
-    }
-  }
-  return reponses;
-}
-
-// ── ÉVALUATION LOGIQUE (Q26-Q27, Partie 5) ───────────────────
-// Bonnes réponses attendues, dans l'ordre des questions LOGIQUE
-const BONNES_REPONSES_LOGIQUE = ['64', 'école'];
-
-function evaluerLogique(reps) {
-  const n = reps.LOGIQUE.length;
-  let ok = 0;
-  reps.LOGIQUE.forEach((rep, i) => {
-    const attendu = BONNES_REPONSES_LOGIQUE[i];
-    if (attendu && rep.toLowerCase().includes(attendu)) ok++;
-  });
-  return { n, ok };
-}
-
-function scoreLocal(r) {
-  let texte = r.reponses || '';
-  if (texte.length < 50) {
-    const candidat = Object.values(r)
-      .filter(v => typeof v === 'string' && v.length > texte.length)
-      .sort((a, b) => b.length - a.length)[0];
-    if (candidat) texte = candidat;
-  }
-
-  const reps = extraireReponses(texte);
-  const pct  = parseInt(r.scorePct) || 0;
-
-  // Texte des réponses UNIQUEMENT (pas les questions)
-  const texteReps    = reps.all.join(' ').toLowerCase();
-  const texteOpen    = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].join(' ').toLowerCase();
-  const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
-  const logique      = evaluerLogique(reps);
-
-  // ── Signaux positifs (dans les réponses uniquement) ───────
-  const signesMotivation = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
-  const signesPosture    = ['écoute','empathie','bienveillant','professionnel','organisé','équipe','discret','confidentiel','adaptable','posture','valoriser','soutenir','orienter'].filter(m => texteReps.includes(m));
-  const signesMetier     = ['entretien','diagnostic','parcours','bénéficiaire','dispositif','compétence','cv','emploi durable','contrat','mission','accompagnement individualisé','plan d\'action'].filter(m => texteReps.includes(m));
-
-  // ── Signaux négatifs ──────────────────────────────────────
-  const sanRepNb    = reps.all.filter(r => r.includes('Sans réponse') || r === '').length;
-  const repcourtes  = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].filter(r => r.split(/\s+/).length < 5).length;
-  const repDerisoires = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
-
-  // ── Score composite ───────────────────────────────────────
-  let score = 0;
-  if (pct >= 70) score += 3; else if (pct >= 40) score += 1;
-
-  score += Math.min(signesMotivation.length, 3);
-  score += Math.min(signesPosture.length, 3);
-  score += Math.min(signesMetier.length, 2);
-
-  // Richesse des réponses ouvertes
-  if (nMotsOpen > 200) score += 2;
-  else if (nMotsOpen > 80) score += 1;
-  else if (nMotsOpen < 30) score -= 2;
-
-  // Pénalités
-  score -= Math.min(sanRepNb, 3);         // réponses manquantes
-  score -= Math.min(repcourtes, 3);       // réponses trop courtes aux questions ouvertes
-  score -= repDerisoires.length * 2;      // réponses dérisoires ou inappropriées
-
-  // Logique (Q26-Q27) : +1 par bonne réponse, -1 si tout est faux
-  score += logique.ok;
-  if (logique.n >= 2 && logique.ok === 0) score -= 1;
-
-  return score;
-}
-
 function afficherListe() {
   const container = document.getElementById('listeCandidats');
   document.getElementById('badgeCount').textContent = resultatsAffiches.length + ' candidat(s)';
 
-  // Stats basées sur la même logique que l'analyse locale
+  // Stats rapides basées sur score QCM
   let fav=0, app=0, ina=0;
   resultatsAffiches.forEach(r => {
-    const s = scoreLocal(r);
-    if (s >= 5) fav++;
-    else if (s >= 2) app++;
+    const pct = parseInt(r.scorePct) || 0;
+    if (pct >= 70) fav++;
+    else if (pct >= 40) app++;
     else ina++;
   });
   document.getElementById('statTotal').textContent = resultatsAffiches.length;
@@ -640,7 +449,7 @@ function afficherListe() {
       <div class="candidat-header">
         <div class="candidat-avatar">${ini}</div>
         <div>
-          <div class="candidat-nom">${r.prenom} ${r.nom}</div>
+          <div class="candidat-nom">${((r.prenom||'')+' '+(r.nom||'')).trim() || '— Nom non renseigné —'}</div>
           <div class="candidat-form">${r.formation}</div>
           <div class="candidat-date">📅 ${r.date} ${r.heure ? '· '+r.heure : ''}</div>
         </div>
@@ -683,99 +492,6 @@ async function ouvrirModal(r) {
 
   // Réponses
   afficherReponses(r);
-
-  // Formations alternatives (si inadapté ou à approfondir)
-  if (analyse.reco.includes('approfondir') || analyse.reco.includes('Inadapt')) {
-    afficherAlternatives(r);
-  } else {
-    document.getElementById('sectAlternatives').innerHTML = '';
-  }
-}
-
-// ── FORMATIONS ALTERNATIVES ───────────────────────────────────
-const PROFILS_FORMATIONS = {
-  'Conseiller(ère) en Insertion Professionnelle': {
-    mots: ['accompagnement','bénéficiaire','emploi','parcours','diagnostic','entretien','insertion','dispositif','empathie','écoute','orientation','mission locale','france travail','rsа','cap emploi'],
-    soft: ['écoute','empathie','bienveillant','accompagner','soutenir','orienter','patient']
-  },
-  'Secrétaire Assistant(e) Médico-Administratif(ve)': {
-    mots: ['médical','santé','patient','ordonnance','cabinet','secrétaire','administratif','dossier','agenda','accueil','prise en charge','mutuelle','rendez-vous','soin'],
-    soft: ['organisé','rigoureux','discret','confidentiel','précis','accueil']
-  },
-  'Assistant(e) de Direction': {
-    mots: ['direction','agenda','réunion','planning','courrier','rapport','présentation','coordination','gestion','excel','word','powerpoint','budget','déplacement'],
-    soft: ['organisé','polyvalent','discret','autonome','réactif','prioriser']
-  },
-  'Chargé(e) d\'Accueil et de Gestion Administrative': {
-    mots: ['accueil','gestion','administratif','courrier','classement','bureautique','standard','mail','traitement','dossier','base de données','tableau'],
-    soft: ['souriant','organisé','polyvalent','communication','service','accueil']
-  },
-  'Conseiller(ère) de Vente': {
-    mots: ['vente','client','produit','conseil','cab','argumentation','fidélisation','panier','objectif','chiffre','rayon','boutique','commerce'],
-    soft: ['dynamique','souriant','persuasif','écoute','service','contact','équipe']
-  },
-  'Employé(e) Commercial(e)': {
-    mots: ['rayon','stock','mise en rayon','caisse','inventaire','commande','prix','étiquette','facing','réserve','magasin','commerce'],
-    soft: ['dynamique','rigoureux','équipe','polyvalent','service']
-  },
-  'Comptabilité / Gestion': {
-    mots: ['comptabilité','facture','devis','bilan','tva','paie','salaire','budget','excel','chiffre','calcul','finance','trésorerie'],
-    soft: ['rigoureux','précis','organisé','discret','analytique']
-  }
-};
-
-function scoreFormation(texteReps, profil) {
-  const t = texteReps.toLowerCase();
-  const motsOk   = profil.mots.filter(m => t.includes(m)).length;
-  const softOk   = profil.soft.filter(m => t.includes(m)).length;
-  const maxMots  = profil.mots.length;
-  const maxSoft  = profil.soft.length;
-  return Math.round(((motsOk / maxMots) * 60 + (softOk / maxSoft) * 40));
-}
-
-function afficherAlternatives(r) {
-  let texte = r.reponses || '';
-  if (texte.length < 50) {
-    const c = Object.values(r).filter(v => typeof v === 'string').sort((a,b) => b.length - a.length)[0];
-    if (c) texte = c;
-  }
-  const reps      = extraireReponses(texte);
-  const texteReps = reps.all.join(' ');
-
-  // Scorer chaque formation sauf celle visée
-  const scores = Object.entries(PROFILS_FORMATIONS)
-    .filter(([nom]) => nom !== r.formation)
-    .map(([nom, profil]) => ({ nom, pct: scoreFormation(texteReps, profil) }))
-    .sort((a, b) => b.pct - a.pct)
-    .slice(0, 3);
-
-  // Score de la formation visée (pour comparaison)
-  const profilVise  = PROFILS_FORMATIONS[r.formation];
-  const scoreVise   = profilVise ? scoreFormation(texteReps, profilVise) : 0;
-  const meilleурPct = scores[0]?.pct || 0;
-
-  if (meilleурPct < 10) {
-    document.getElementById('sectAlternatives').innerHTML = '';
-    return;
-  }
-
-  const items = scores.map(s => `
-    <div class="altern-item">
-      <div class="altern-label">
-        <span class="altern-nom">${s.nom}</span>
-        <span class="altern-pct">${s.pct}%</span>
-      </div>
-      <div class="altern-bar"><div class="altern-fill" style="width:${s.pct}%"></div></div>
-    </div>`).join('');
-
-  document.getElementById('sectAlternatives').innerHTML = `
-    <div class="section-titre">Formations alternatives</div>
-    <div class="altern-box">
-      <div class="altern-titre">🔄 Adéquation avec d'autres formations JTCF
-        ${scoreVise > 0 ? `<span style="font-size:11px;font-weight:400;color:var(--gris)"> · Formation visée : ${scoreVise}%</span>` : ''}
-      </div>
-      ${items}
-    </div>`;
 }
 
 function fermerModal() {
@@ -791,10 +507,7 @@ function dessinerRadar(r) {
   const nMots = texte.split(' ').length;
   const connaissances = Math.min(100, pct);
   const communication = Math.min(100, nMots > 300 ? 75 : nMots > 150 ? 55 : 35);
-  // Axe Logique : basé sur les vraies réponses Q26-Q27 si présentes, sinon estimation via QCM
-  const repsRadar = extraireReponses(texte);
-  const logEval   = evaluerLogique(repsRadar);
-  const logique   = logEval.n >= 2 ? Math.round((logEval.ok / 2) * 100) : Math.min(100, pct * 1.1);
+  const logique = Math.min(100, pct * 1.1);
   const motivation = texte.toLowerCase().includes('passion') || texte.toLowerCase().includes('souhait') ? 80 : 60;
   const posture = texte.length > 200 ? 70 : 45;
 
@@ -821,115 +534,61 @@ function dessinerRadar(r) {
   });
 }
 
-// ── ANALYSE LOCALE (sans IA externe) ─────────────────────────
+// ── ANALYSE IA ────────────────────────────────────────────────
 async function analyserAvecIA(r) {
-  // Récupérer le texte des réponses (champ le plus long si reponses vide)
-  let texte = r.reponses || '';
-  if (texte.length < 50) {
-    const candidat = Object.values(r)
-      .filter(v => typeof v === 'string' && v.length > texte.length)
-      .sort((a, b) => b.length - a.length)[0];
-    if (candidat) texte = candidat;
+  // Extraire les réponses ouvertes et situations du texte brut
+  const texte = r.reponses || '';
+  const lignes = texte.split('\n').filter(l => l.trim());
+  const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
+
+  const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
+Analyse le test de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
+
+Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
+Niveau scolaire : ${r.niveau || 'non renseigné'}
+
+Réponses ouvertes et situations :
+${repOuvertes || texte.substring(0, 2000)}
+
+Donne une analyse structurée en 3 parties :
+1. POINTS FORTS (2-3 éléments)
+2. POINTS DE VIGILANCE (1-2 éléments)  
+3. RECOMMANDATION : commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)"
+
+Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await resp.json();
+    const texteIA = data.content?.[0]?.text || '';
+
+    // Extraire la recommandation
+    let reco = '—';
+    if (texteIA.includes('Très favorable')) reco = '✅ Très favorable';
+    else if (texteIA.includes('À approfondir')) reco = '⚠️ À approfondir';
+    else if (texteIA.includes('Inadapté')) reco = '❌ Inadapté(e)';
+
+    // Formater le texte
+    const html = texteIA
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
+    return { html: '<p>' + html + '</p>', reco };
+  } catch(e) {
+    return {
+      html: '<em>Analyse IA indisponible. Vérifiez la connexion.</em>',
+      reco: parseInt(r.scorePct) >= 70 ? '✅ Très favorable' : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '❌ Score faible'
+    };
   }
-
-  const reps         = extraireReponses(texte);
-  const pct          = parseInt(r.scorePct) || 0;
-  const texteReps    = reps.all.join(' ').toLowerCase();
-  const texteOpen    = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].join(' ').toLowerCase();
-  const nMotsOpen    = texteOpen.split(/\s+/).filter(Boolean).length;
-  const logique      = evaluerLogique(reps);
-
-  const signesMotivation  = ['passion','souhait','envie','projet','je veux','je souhaite','carrière','évoluer','j\'ai travaillé','j\'ai déjà','bénévole','stage','immersion','aider','accompagner'].filter(m => texteReps.includes(m));
-  const signesPosture     = ['écoute','empathie','bienveillant','professionnel','organisé','équipe','discret','confidentiel','adaptable','posture','valoriser','soutenir','orienter'].filter(m => texteReps.includes(m));
-  const signesMetier      = ['entretien','diagnostic','parcours','bénéficiaire','dispositif','compétence','cv','emploi durable','contrat','mission','accompagnement individualisé','plan d\'action'].filter(m => texteReps.includes(m));
-  const sanRepNb          = reps.all.filter(rep => rep.includes('Sans réponse') || rep === '').length;
-  const repcourtes        = [...reps.OPEN, ...reps.SITUATION, ...reps.COMPREHENSION].filter(rep => rep.split(/\s+/).length < 5).length;
-  const repDerisoires     = ['clim','gateau','gâteau','potence','police','improvisation','pfff','trop de boulot','je m\'en sors','laissez aller','apprendre a lire','apprendre à lire'].filter(m => texteReps.includes(m));
-
-  // ── Score composite ───────────────────────────────────────
-  let score = 0;
-  if (pct >= 70) score += 3; else if (pct >= 40) score += 1;
-  score += Math.min(signesMotivation.length, 3);
-  score += Math.min(signesPosture.length, 3);
-  score += Math.min(signesMetier.length, 2);
-  if (nMotsOpen > 200) score += 2; else if (nMotsOpen > 80) score += 1; else if (nMotsOpen < 30) score -= 2;
-  score -= Math.min(sanRepNb, 3);
-  score -= Math.min(repcourtes, 3);
-  score -= repDerisoires.length * 2;
-  score += logique.ok;
-  if (logique.n >= 2 && logique.ok === 0) score -= 1;
-
-  // ── Recommandation (seuils calibrés) ─────────────────────
-  let reco, recoLabel, recoColor;
-  if (score >= 5) {
-    reco = '✅ Très favorable'; recoLabel = 'Très favorable'; recoColor = '#1D9E75';
-  } else if (score >= 2) {
-    reco = '⚠️ À approfondir'; recoLabel = 'À approfondir'; recoColor = '#B7791F';
-  } else {
-    reco = '❌ Inadapté(e)'; recoLabel = 'Inadapté(e)'; recoColor = '#C0392B';
-  }
-
-  // ── Points forts (cohérents avec la recommandation) ───────
-  const pointsForts = [];
-  if (score >= 2) {
-    if (signesMotivation.length >= 2)
-      pointsForts.push('Motivation exprimée clairement, projet professionnel identifié.');
-    else if (signesMotivation.length === 1)
-      pointsForts.push('Motivation présente, à consolider en entretien.');
-    if (signesPosture.length >= 2)
-      pointsForts.push('Posture professionnelle valorisée : ' + signesPosture.slice(0,3).join(', ') + '.');
-    if (signesMetier.length >= 2)
-      pointsForts.push('Bonne connaissance du vocabulaire et des réalités du métier.');
-    else if (signesMetier.length === 1)
-      pointsForts.push('Notions du métier présentes, à approfondir.');
-    if (nMotsOpen > 200)
-      pointsForts.push('Réponses développées témoignant d\'un investissement sérieux dans la démarche.');
-    if (logique.ok === 2)
-      pointsForts.push('Raisonnement logique validé (2/2 aux questions de logique).');
-    else if (logique.ok === 1)
-      pointsForts.push('Raisonnement logique partiellement acquis (1/2 aux questions de logique).');
-  }
-  if (!pointsForts.length)
-    pointsForts.push('Démarche de formation engagée, motivations à explorer en entretien.');
-
-  // ── Points de vigilance ───────────────────────────────────
-  const vigilance = [];
-  if (repDerisoires.length > 0)
-    vigilance.push('Certaines réponses aux situations professionnelles sont inadaptées au contexte du métier.');
-  if (sanRepNb >= 2)
-    vigilance.push(sanRepNb + ' question(s) sans réponse : engagement et prérequis à vérifier en entretien.');
-  if (repcourtes >= 3)
-    vigilance.push('Réponses ouvertes très courtes : la motivation et le projet restent à développer.');
-  if (nMotsOpen < 80)
-    vigilance.push('Peu de développement dans les réponses ouvertes : approfondir en entretien.');
-  if (signesMetier.length < 2)
-    vigilance.push('Connaissance du métier à consolider avant l\'entrée en formation.');
-  if (pct > 0 && pct < 40)
-    vigilance.push('Score QCM faible : vérifier les prérequis de base en entretien.');
-  if (logique.n >= 2 && logique.ok === 0)
-    vigilance.push('Les deux questions de logique sont échouées : capacités de raisonnement à vérifier en entretien.');
-  if (score < 2)
-    vigilance.push('L\'ensemble du dossier ne permet pas de valider l\'adéquation au poste.');
-  if (!vigilance.length)
-    vigilance.push('À valider en entretien : expériences concrètes dans le secteur visé.');
-
-  // ── Texte de conclusion cohérent ─────────────────────────
-  const conclusion = score >= 5
-    ? 'Le dossier présente des signaux positifs solides. Entrée en formation recommandée.'
-    : score >= 2
-    ? 'Profil intéressant nécessitant un entretien approfondi pour confirmer l\'adéquation.'
-    : 'Les éléments disponibles révèlent des lacunes importantes. Un bilan ou accompagnement préalable est conseillé.';
-
-  // ── Mise en forme HTML ────────────────────────────────────
-  const html = `
-    <p><strong>📌 Points forts</strong><br>
-    ${pointsForts.map(p => '• ' + p).join('<br>')}</p>
-    <p><strong>⚠️ Points de vigilance</strong><br>
-    ${vigilance.map(v => '• ' + v).join('<br>')}</p>
-    <p><strong style="color:${recoColor}">🎯 Recommandation : ${recoLabel}</strong><br>
-    ${conclusion}</p>`;
-
-  return { html, reco };
 }
 
 // ── RÉPONSES ──────────────────────────────────────────────────
@@ -945,7 +604,7 @@ function afficherReponses(r) {
     } else if (ligne.startsWith('→') && questionCourante) {
       const typeMatch = questionCourante.match(/\[(\w+)\]/);
       const type = typeMatch ? typeMatch[1] : '';
-      if (type === 'SITUATION' || type === 'OPEN' || type === 'CALCUL' || type === 'LOGIQUE' || type === 'COMPREHENSION') {
+      if (type === 'SITUATION' || type === 'OPEN' || type === 'CALCUL') {
         html += `<div class="reponse-item">
           <div class="reponse-q">${questionCourante.replace(/Q\d+ \[\w+\] : /, '')}</div>
           <div class="reponse-r">${ligne.replace('→','').trim() || '<em>Sans réponse</em>'}</div>
