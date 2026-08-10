@@ -649,9 +649,13 @@ async function analyserAvecIA(r) {
     else if (t.indexOf('à approfondir') >= 0 || t.indexOf('a approfondir') >= 0) reco = '⚠️ À approfondir';
     else if (t.indexOf('inadapt') >= 0) reco = '❌ Inadapté(e)';
 
+    // Mise en forme : gras, titres de section et listes à puces
     const html = texteIA
       .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/^\s*[\*\-]\s+/gm, '• ')
+      .replace(/^(\d\.\s*[A-ZÀ-Ÿ][^\n]*)$/gm,
+               '<div style="font-weight:800;color:#2A4365;margin:14px 0 6px;">$1</div>')
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>');
 
