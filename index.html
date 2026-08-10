@@ -526,17 +526,17 @@ const QUESTIONS = {
 function getQuestionsGeneriques(formation) {
   const q = [];
   const domaine = formation.domaine;
-  q.push({type:"qcm",texte:`Quel est, selon vous, le rôle principal d'un(e) ${formation.nom} ?`,options:["Gérer la comptabilité","Accompagner et conseiller les clients ou usagers","Superviser uniquement les équipes","Gérer les livraisons"]});
-  q.push({type:"qcm",texte:"Qu'est-ce qu'une communication professionnelle efficace ?",options:["Parler sans écouter","Adapter son message à son interlocuteur et écouter activement","Utiliser uniquement l'email","Parler uniquement en réunion"]});
-  q.push({type:"qcm",texte:"Que signifie 'travail en équipe' dans un contexte professionnel ?",options:["Faire le travail des autres","Collaborer, partager les informations et se soutenir mutuellement","Travailler seul mais en même temps que les autres","Surveiller ce que font les collègues"]});
-  q.push({type:"qcm",texte:"Qu'est-ce que la ponctualité dans le monde du travail ?",options:["Arriver quelques minutes après l'heure","Respecter les horaires convenus et les délais","Prévenir quand on sera en retard uniquement","Une qualité facultative"]});
-  q.push({type:"qcm",texte:"Comment définit-on la confidentialité professionnelle ?",options:["Partager toutes les informations avec tout le monde","Ne pas divulguer les informations professionnelles sensibles en dehors du cadre prévu","Parler de son travail à ses proches","Envoyer des documents à ses amis"]});
-  q.push({type:"qcm",texte:"Qu'est-ce qu'un objectif SMART ?",options:["Simple, Motivant, Assuré, Rapide, Total","Spécifique, Mesurable, Atteignable, Réaliste, Temporel","Standard, Mesuré, Autonome, Résolu, Tracé","Aucune de ces réponses"]});
-  q.push({type:"qcm",texte:"Qu'est-ce qu'un entretien annuel d'évaluation ?",options:["Un entretien de recrutement","Un bilan formalisé des performances et objectifs d'un collaborateur","Une réunion commerciale","Un entretien disciplinaire"]});
-  q.push({type:"qcm",texte:"Comment réagir face à une erreur professionnelle ?",options:["La cacher","L'assumer, la corriger et en tirer des leçons","Rejeter la faute sur les collègues","Démissionner"]});
-  q.push({type:"qcm",texte:"Qu'est-ce que la gestion du stress en milieu professionnel ?",options:["Ignorer le stress","Identifier les sources de stress et mettre en place des stratégies pour y faire face","Travailler plus vite","Prendre des médicaments"]});
-  q.push({type:"qcm",texte:"Qu'est-ce que l'adaptabilité professionnelle ?",options:["Refuser tout changement","Savoir s'ajuster à de nouvelles situations, outils ou méthodes de travail","Suivre uniquement les anciennes procédures","Changer d'emploi régulièrement"]});
-  q.push({type:"open",texte:`Pourquoi souhaitez-vous vous former au métier de ${formation.nom} ?`});
+  q.push({type:"qcm",texte:"Vous devez transmettre une consigne complexe à un collègue. Quelle démarche est la plus fiable ?",options:["La formuler par écrit et vérifier ensuite qu'elle a bien été comprise","L'expliquer oralement en une seule fois, pour ne pas alourdir la procédure","La transmettre à plusieurs personnes afin que l'information circule","L'aborder lors de la prochaine réunion d'équipe"]});
+  q.push({type:"qcm",texte:"Un collègue prend du retard sur une tâche dont dépend votre propre travail. Quelle attitude est la plus professionnelle ?",options:["Signaler le retard à votre responsable sans en parler avec lui","Réaliser sa part à sa place pour ne pas perdre de temps","Échanger avec lui pour comprendre la difficulté et ajuster l'organisation","Poursuivre votre travail et attendre qu'il vous remette sa partie"]});
+  q.push({type:"qcm",texte:"Vous constatez que vous ne pourrez pas respecter une échéance annoncée. Que faites-vous ?",options:["Vous prévenez dès que vous en avez connaissance et proposez une nouvelle date","Vous attendez l'échéance pour annoncer le retard, la situation peut évoluer","Vous remettez un travail incomplet à la date prévue sans le préciser","Vous n'en parlez pas : un léger retard passe généralement inaperçu"]});
+  q.push({type:"qcm",texte:"Vous avez accès à des informations sur la situation personnelle d'un usager. Dans quel cadre pouvez-vous les partager ?",options:["Avec l'ensemble de vos collègues, pour que chacun soit informé","Uniquement avec les personnes habilitées, et dans le cadre de votre mission","Avec votre entourage, à condition de ne citer aucun nom","Avec toute personne qui en fait la demande motivée"]});
+  q.push({type:"qcm",texte:"Parmi ces formulations, laquelle constitue un objectif correctement défini ?",options:["Améliorer la qualité de l'accueil des clients","Faire de son mieux sur l'ensemble de l'année","Réduire de 10 % le délai de réponse aux courriels d'ici trois mois","Gagner en efficacité dans le travail quotidien"]});
+  q.push({type:"qcm",texte:"À quoi sert principalement l'entretien professionnel ?",options:["À sanctionner les manquements constatés durant l'année","À faire le point sur les compétences et les perspectives d'évolution","À négocier une revalorisation de la rémunération","À contrôler le respect des horaires et des congés"]});
+  q.push({type:"qcm",texte:"Vous vous apercevez d'une erreur que vous avez commise et qui a des conséquences. Quelle est la conduite attendue ?",options:["La signaler, en mesurer les effets et proposer une correction","La corriger discrètement sans en informer votre responsable","Attendre de voir si quelqu'un s'en aperçoit avant d'agir","Expliquer que les consignes reçues manquaient de clarté"]});
+  q.push({type:"qcm",texte:"Quelle démarche correspond à une gestion adaptée du stress au travail ?",options:["Accélérer le rythme afin de rattraper le retard accumulé","Identifier ce qui génère la tension et réorganiser ses priorités","Garder ses difficultés pour soi afin de ne pas inquiéter l'équipe","Reporter les tâches qui provoquent de l'appréhension"]});
+  q.push({type:"qcm",texte:"Votre service adopte un nouvel outil informatique. Quelle réaction est la plus professionnelle ?",options:["Conserver l'ancienne méthode, mieux maîtrisée et donc plus fiable","Attendre que les collègues le maîtrisent avant de s'y mettre","Se former à l'outil et signaler les difficultés rencontrées","N'utiliser le nouvel outil que lorsque c'est indispensable"]});
+  q.push({type:"qcm",texte:"Dans la relation avec un client ou un usager, qu'est-ce qui doit primer ?",options:["Apporter une réponse au plus vite, même approximative","Comprendre le besoin réel avant de proposer une solution","Appliquer strictement la procédure, quelle que soit la demande","Orienter vers un collègue plus expérimenté dès que possible"]});
+q.push({type:"open",texte:`Pourquoi souhaitez-vous vous former au métier de ${formation.nom} ?`});
   q.push({type:"open",texte:"Quelles expériences (professionnelles ou personnelles) vous ont préparé(e) à ce parcours ?"});
   q.push({type:"open",texte:"Quelles qualités pensez-vous posséder qui seront utiles dans ce métier ?"});
   q.push({type:"open",texte:"Quels sont vos points d'amélioration que vous souhaitez travailler durant la formation ?"});
@@ -560,7 +560,8 @@ function getQuestionsGeneriques(formation) {
 let selectedFormation = null;
 let currentQuestions  = [];
 let reponses          = {};
-let reponsesIndex     = {};   // rang de l'option cochée, pour le score QCM
+let reponsesIndex     = {};   // rang d'origine de l'option cochée, pour le score QCM
+let ordreOptions      = {};   // ordre d'affichage tiré au sort, par question
 
 // ══════════════════════════════════════════════
 // INIT : grille de formations
@@ -619,6 +620,7 @@ function demarrerTest() {
   currentQuestions = QUESTIONS[selectedFormation.id] || getQuestionsGeneriques(selectedFormation);
   reponses = {};
   reponsesIndex = {};
+  ordreOptions = {};
 
   // Afficher le questionnaire
   document.getElementById('testTitre').textContent = selectedFormation.nom;
@@ -677,16 +679,29 @@ function renderQuestions() {
     if (q.type === 'qcm') {
       const opts = document.createElement('div');
       opts.className = 'options';
-      q.options.forEach((opt, j) => {
+
+      // Ordre d'affichage tiré au sort une seule fois par question, pour que
+      // la bonne réponse ne soit jamais toujours à la même place.
+      // On conserve le rang d'origine, seul utile au calcul du score.
+      if (!ordreOptions[i]) {
+        const ordre = q.options.map(function(_, k){ return k; });
+        for (let k = ordre.length - 1; k > 0; k--) {
+          const z = Math.floor(Math.random() * (k + 1));
+          const tmp = ordre[k]; ordre[k] = ordre[z]; ordre[z] = tmp;
+        }
+        ordreOptions[i] = ordre;
+      }
+
+      ordreOptions[i].forEach(function(rangOrigine) {
+        const opt = q.options[rangOrigine];
         const lbl = document.createElement('label');
         lbl.className = 'option-label';
-        lbl.innerHTML = `<input type="radio" name="q${i}" value="${opt}"> ${opt}`;
-        lbl.querySelector('input').addEventListener('change', () => {
-          block.querySelectorAll('.option-label').forEach(l => l.classList.remove('selected'));
+        lbl.innerHTML = '<input type="radio" name="q' + i + '" value="' + opt.replace(/"/g,'&quot;') + '"> ' + opt;
+        lbl.querySelector('input').addEventListener('change', function() {
+          block.querySelectorAll('.option-label').forEach(function(l){ l.classList.remove('selected'); });
           lbl.classList.add('selected');
           reponses[i] = opt;
-
-          reponsesIndex[i] = j;   // rang de l'option (0, 1, 2…)
+          reponsesIndex[i] = rangOrigine;   // rang d'origine, pas d'affichage
           updateProgress();
         });
         opts.appendChild(lbl);
@@ -811,6 +826,7 @@ function goToIdentite() {
 function recommencer() {
   reponses = {};
   reponsesIndex = {};
+  ordreOptions = {};
   document.querySelectorAll('.formation-card').forEach(c => c.classList.remove('selected'));
   selectedFormation = null;
   showScreen('screenIdentite');
