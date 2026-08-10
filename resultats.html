@@ -623,65 +623,46 @@ function dessinerRadar(r) {
 
 // ── ANALYSE IA ────────────────────────────────────────────────
 async function analyserAvecIA(r) {
-  // Extraire les réponses ouvertes et situations du texte brut
-  const texte = r.reponses || '';
-  const lignes = texte.split('\n').filter(l => l.trim());
-  const repOuvertes = lignes.filter(l => l.startsWith('→') && l.length > 20).map(l => l.replace('→','').trim()).join('\n');
-
-  const prompt = `Tu es un(e) conseiller(ère) en insertion professionnelle chez JT Conseil Formation à La Réunion.
-Analyse le test de positionnement d'un(e) candidat(e) pour la formation "${r.formation}".
-
-Score QCM : ${r.scoreQCM || 'non disponible'} (${r.scorePct || '—'})
-Niveau scolaire : ${r.niveau || 'non renseigné'}
-
-Réponses ouvertes et situations :
-${repOuvertes || texte.substring(0, 2000)}
-
-Donne une analyse structurée en 3 parties :
-1. POINTS FORTS (2-3 éléments)
-2. POINTS DE VIGILANCE (1-2 éléments)  
-3. RECOMMANDATION : commence OBLIGATOIREMENT par l'une de ces 3 formules exactes : "Très favorable", "À approfondir", ou "Inadapté(e)"
-
-Sois concis(e), bienveillant(e) et professionnel(le). Maximum 200 mots.`;
-
+  // L'analyse est réalisée par le script Google : la clé API y reste stockée,
+  // elle n'apparaît jamais dans cette page.
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
+    const url = SCRIPT_URL + '?action=analyse&code=' + encodeURIComponent(CODE_ACCES)
+              + '&id=' + encodeURIComponent(r.id);
+    const resp = await fetch(url);
     const data = await resp.json();
-    const texteIA = data.content?.[0]?.text || '';
 
-    // Extraire la recommandation
+    if (data.status !== 'OK' || !data.analyse) {
+      const msg = data.message || 'Réponse inattendue du serveur.';
+      return {
+        html: '<em>Analyse automatique indisponible.</em><br><br>' + msg,
+        reco: (r.scoreQCM && r.scorePct)
+          ? (parseInt(r.scorePct) >= 70 ? '✅ Très favorable'
+             : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '⚠️ Score QCM faible')
+          : '📄 Voir les réponses'
+      };
+    }
+
+    const texteIA = data.analyse;
     let reco = '—';
-    if (texteIA.includes('Très favorable')) reco = '✅ Très favorable';
-    else if (texteIA.includes('À approfondir')) reco = '⚠️ À approfondir';
-    else if (texteIA.includes('Inadapté')) reco = '❌ Inadapté(e)';
+    const t = texteIA.toLowerCase();
+    if (t.indexOf('très favorable') >= 0 || t.indexOf('tres favorable') >= 0) reco = '✅ Très favorable';
+    else if (t.indexOf('à approfondir') >= 0 || t.indexOf('a approfondir') >= 0) reco = '⚠️ À approfondir';
+    else if (t.indexOf('inadapt') >= 0) reco = '❌ Inadapté(e)';
 
-    // Formater le texte
     const html = texteIA
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>');
 
     return { html: '<p>' + html + '</p>', reco };
+
   } catch(e) {
-    // L'API ne peut pas être appelée depuis un navigateur : on l'annonce clairement
-    // plutôt que d'afficher un verdict fondé sur un score inexistant.
-    const aScore = !!(r.scoreQCM && r.scorePct);
     return {
-      html: '<em>Analyse automatique non disponible.</em><br><br>' +
-            'L\'appel à l\'API ne peut pas être effectué depuis le navigateur. ' +
-            'Les réponses complètes du candidat restent consultables ci-dessous.',
-      reco: aScore
+      html: '<em>Analyse automatique indisponible.</em><br><br>Le service n\'a pas pu être joint.',
+      reco: (r.scoreQCM && r.scorePct)
         ? (parseInt(r.scorePct) >= 70 ? '✅ Très favorable'
-           : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir'
-           : '⚠️ Score QCM faible')
+           : parseInt(r.scorePct) >= 40 ? '⚠️ À approfondir' : '⚠️ Score QCM faible')
         : '📄 Voir les réponses'
     };
   }
