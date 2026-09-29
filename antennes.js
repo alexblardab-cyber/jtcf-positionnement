@@ -41,7 +41,8 @@
 
       // Le territoire couvert, tel qu'on le dit aux candidats.
       libelle: 'Sud',
-      couvre: 'Saint-Joseph, Saint-Pierre, Le Tampon, Saint-Louis, Petite-Île, Saint-Philippe',
+      couvre: 'Saint-Joseph, Saint-Pierre, Le Tampon, Saint-Louis, Petite-Île, Saint-Philippe, '
+            + 'Entre-Deux, L\'Étang-Salé, Cilaos, Les Avirons',
 
       // Les codes des conseillers de rdv.js qui reçoivent ici.
       // Le premier de la liste est celui vers qui partent les demandes
@@ -65,8 +66,9 @@
       courriel: 'contact@tbrgroup.fr',   // en attendant, tout arrive chez Alexandre
 
       libelle: 'Nord, Est et Ouest',
-      couvre: 'Saint-Denis, Sainte-Marie, Sainte-Suzanne, Saint-André, '
-            + 'Saint-Benoît, Saint-Paul, Le Port, La Possession, Saint-Leu',
+      couvre: 'Saint-Denis, Sainte-Marie, Sainte-Suzanne, Saint-André, Bras-Panon, '
+            + 'Saint-Benoît, La Plaine-des-Palmistes, Sainte-Rose, Salazie, '
+            + 'Saint-Paul, Le Port, La Possession, Saint-Leu, Trois-Bassins',
 
       conseillers: [],                   // ex. ['XX'] quand son code existe
 
@@ -130,6 +132,16 @@
     return 'sud';
   }
 
+  // Les communes de chaque antenne, dans l'ordre alphabétique.
+  function communes(id) {
+    var a = ANTENNES[id];
+    if (!a) return [];
+    return String(a.couvre || '').split(',')
+      .map(function (v) { return v.trim(); })
+      .filter(Boolean)
+      .sort(function (x, y) { return x.localeCompare(y, 'fr'); });
+  }
+
   // Les options prêtes à poser dans une liste déroulante.
   function options(seulementOuvertes) {
     return (seulementOuvertes ? ouvertes() : liste()).map(function (a) {
@@ -140,6 +152,7 @@
   global.JTCF_ANTENNES = {
     ANTENNES: ANTENNES,
     liste: liste,
+    communes: communes,
     ouvertes: ouvertes,
     get: get,
     referent: referent,

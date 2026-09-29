@@ -254,39 +254,25 @@
     gap: 10px;
     margin-top: 12px;
   }
-  /* Chaque domaine porte sa couleur : liseré à gauche, fond teinté, pastille */
   .formation-card {
-    padding: 12px 14px 12px 16px;
-    border: 1px solid var(--border);
-    border-left: 5px solid var(--dom, #CBD5E1);
-    border-radius: 0 10px 10px 0;
-    background: var(--dom-bg, #FFF);
+    padding: 12px 14px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
     cursor: pointer;
-    transition: transform .15s, box-shadow .15s, border-color .15s;
+    transition: all .2s;
   }
-  .formation-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 14px rgba(0,0,0,.10);
-  }
-  .formation-card.selected {
-    border-color: var(--dom, #CBD5E1);
-    box-shadow: 0 0 0 2px var(--dom, #CBD5E1) inset, 0 4px 14px rgba(0,0,0,.12);
-  }
+  .formation-card:hover { border-color: var(--gold); background: #FFFBEB; }
+  .formation-card.selected { border-color: var(--gold); background: #FFFBEB; }
   .formation-card .domaine {
-    display: inline-block;
-    font-size: 9px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: .07em; margin-bottom: 6px;
-    color: var(--dom, #64748B);
-    background: var(--dom-pill, #F1F5F9);
-    padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .06em; color: var(--grey); margin-bottom: 4px;
   }
   .formation-card .nom { font-size: 13px; font-weight: 600; color: var(--navy); line-height: 1.3; }
-
-  .domaine-commerce  { --dom:#1D4ED8; --dom-bg:#F5F8FF; --dom-pill:#E0EAFF; }
-  .domaine-admin     { --dom:#166534; --dom-bg:#F4FBF6; --dom-pill:#DCFCE7; }
-  .domaine-mediation { --dom:#9A3412; --dom-bg:#FFF8F4; --dom-pill:#FFEDD5; }
-  .domaine-aide      { --dom:#6B21A8; --dom-bg:#FBF7FF; --dom-pill:#F3E8FF; }
-  .domaine-tourisme  { --dom:#0F766E; --dom-bg:#F3FBFA; --dom-pill:#CCFBF1; }
+  .domaine-commerce  { color: #1D4ED8; }
+  .domaine-admin     { color: #166534; }
+  .domaine-mediation { color: #9A3412; }
+  .domaine-aide      { color: #6B21A8; }
+  .domaine-tourisme  { color: #0F766E; }
 
   /* ── NOTICE ── */
   .notice {
@@ -380,6 +366,13 @@
         <option>Bac +3 et plus</option>
       </select>
     </div>
+    <div class="field">
+      <label>Votre commune <span class="req">*</span></label>
+      <select id="commune">
+        <option value="">-- Sélectionnez --</option>
+      </select>
+      <p id="communeInfo" style="font-size:12px;color:var(--grey);margin-top:6px;display:none;"></p>
+    </div>
   </div>
 
   <div class="btn-row">
@@ -413,8 +406,8 @@
       <h2>Test envoyé avec succès !</h2>
       <p>Merci <strong id="successNom"></strong>.<br>
       Votre test de positionnement pour la formation <strong id="successFormation"></strong> a bien été transmis à l'équipe JTCF.<br><br>
-      Votre conseiller(ère) analysera vos réponses et vous contactera prochainement.<br><br>
-      <em style="color:var(--grey);font-size:12px;">Une copie a été envoyée à contact@tbrgroup.fr</em></p>
+      <span id="successAntenne"></span><br><br>
+      <em style="color:var(--grey);font-size:12px;">Une copie a été envoyée à l'équipe.</em></p>
     </div>
   </div>
   <div class="btn-row" style="justify-content:center;">
@@ -426,6 +419,7 @@
 
 <footer>JT Conseil Formation — Saint-Joseph & Saint-Denis, La Réunion — Tous droits réservés</footer>
 
+<script src="antennes.js"></script>
 <script>
 // ══════════════════════════════════════════════
 // DONNÉES : 16 FORMATIONS + QUESTIONS
@@ -441,7 +435,6 @@ const FORMATIONS = [
   { id:"CAGA", nom:"Chargé(e) d'Accueil et de Gestion Administrative",domaine:"Administration",classe:"domaine-admin"     },
   { id:"ACA",  nom:"Assistant(e) de Comptabilité et d'Administration",domaine:"Administration",classe:"domaine-admin"     },
   { id:"AD",   nom:"Assistant(e) de Direction",                       domaine:"Administration",classe:"domaine-admin"     },
-  { id:"SC",   nom:"Secrétaire Comptable",                            domaine:"Administration",classe:"domaine-admin"     },
   { id:"ARH",  nom:"Assistant(e) Ressources Humaines",                domaine:"Administration",classe:"domaine-admin"     },
   { id:"CIP",  nom:"Conseiller(ère) en Insertion Professionnelle",    domaine:"Médiation",     classe:"domaine-mediation" },
   { id:"AMIS", nom:"Agent de Médiation, Information et Services",     domaine:"Médiation",     classe:"domaine-mediation" },
@@ -507,33 +500,6 @@ const QUESTIONS = {
     {type:"calcul",texte:"Un article est vendu 85 € TTC avec une TVA de 20 %. Quel est son prix HT ?"},
     {type:"calcul",texte:"Vous avez vendu pour 4 200 € ce mois-ci. Votre objectif était 3 500 €. De quel pourcentage avez-vous dépassé votre objectif ?"},
     {type:"calcul",texte:"Un client achète 3 articles à 24,90 € chacun et bénéficie d'une remise de 10 %. Quel est le montant total à payer ?"},
-  ],
-  SC: [
-    {type:"qcm",       texte:"Qu'est-ce qu'une facture d'avoir ?", options:["Une facture réglée par anticipation","Une facture qui annule ou corrige une facture précédente","Un relevé bancaire mensuel","Une facture établie par le client"]},
-    {type:"qcm",       texte:"Que signifie l'abréviation TVA ?", options:["Taxe sur la Valeur Ajoutée","Taux Variable d'Amortissement","Total Versé Annuellement","Taxe sur les Ventes Annuelles"]},
-    {type:"qcm",       texte:"Dans le plan comptable, que regroupent les comptes de classe 6 ?", options:["Les produits","Les immobilisations","Les charges","Les créances clients"]},
-    {type:"qcm",       texte:"En quoi consiste un rapprochement bancaire ?", options:["Négocier un prêt auprès de sa banque","Vérifier la concordance entre le relevé bancaire et la comptabilité","Regrouper plusieurs comptes en un seul","Changer d'établissement bancaire"]},
-    {type:"qcm",       texte:"Que désigne l'échéance figurant sur une facture ?", options:["Le montant hors taxes","La date d'émission du document","Le mode de règlement retenu","La date limite de paiement"]},
-    {type:"qcm",       texte:"Qu'est-ce qu'un devis ?", options:["Une proposition chiffrée établie avant réalisation","Une facture définitive","Un bon de livraison","Un relevé de compte client"]},
-    {type:"qcm",       texte:"Sur une facture, que signifie la mention « HT » ?", options:["Hors Territoire","Habituellement Traité","Hors Taxes","Haute Tolérance"]},
-    {type:"qcm",       texte:"À quoi sert un bordereau de remise de chèques ?", options:["À commander un nouveau chéquier","À détailler les chèques déposés à la banque","À signaler la perte d'un chèque","À justifier un retrait d'espèces"]},
-    {type:"qcm",       texte:"Qu'appelle-t-on une immobilisation en comptabilité ?", options:["Un stock de marchandises","Une dette à court terme","Une charge de personnel","Un bien durable utilisé par l'entreprise"]},
-    {type:"qcm",       texte:"Quelles mentions doivent obligatoirement figurer sur une facture ?", options:["Le numéro, la date et les mentions légales","Le seul montant à régler","La signature du client","Le nom du comptable ayant saisi l'écriture"]},
-    {type:"calcul",    texte:"Une facture s'élève à 1 250 € HT, avec une TVA au taux de 20 %. Calculez le montant TTC."},
-    {type:"calcul",    texte:"Un client règle 480 € sur une facture de 1 200 €. Quel pourcentage du montant reste-t-il à payer ?"},
-    {type:"calcul",    texte:"Au cours du mois, l'entreprise a encaissé 8 400 € et décaissé 6 750 €. Quel est le solde du mois ?"},
-    {type:"open",      texte:"Pourquoi souhaitez-vous vous former au métier de Secrétaire Comptable ?"},
-    {type:"open",      texte:"Quelles expériences, professionnelles ou personnelles, vous ont préparé(e) à ce parcours ?"},
-    {type:"open",      texte:"Comment organisez-vous votre travail lorsque plusieurs échéances tombent en même temps ?"},
-    {type:"open",      texte:"Quels outils bureautiques ou logiciels de comptabilité avez-vous déjà utilisés ?"},
-    {type:"open",      texte:"Selon vous, quelles qualités sont indispensables pour exercer ce métier ?"},
-    {type:"open",      texte:"Quels points souhaitez-vous travailler en priorité pendant la formation ?"},
-    {type:"open",      texte:"Où vous voyez-vous professionnellement dans trois à cinq ans ?"},
-    {type:"situation", texte:"Un fournisseur vous relance pour une facture que vous ne retrouvez pas dans vos dossiers. Comment procédez-vous ?"},
-    {type:"situation", texte:"Vous constatez un écart entre le relevé bancaire et les écritures comptables. Quelle démarche adoptez-vous ?"},
-    {type:"situation", texte:"Votre responsable vous demande un état des dépenses pour le lendemain, alors qu'une déclaration doit être transmise le même jour. Comment gérez-vous ?"},
-    {type:"situation", texte:"Un client conteste le montant d'une facture que vous avez établie. Que faites-vous ?"},
-    {type:"situation", texte:"Vous découvrez une erreur de saisie sur une écriture validée le mois précédent. Comment réagissez-vous ?"},
   ],
   CIP: [
     {type:"qcm",texte:"Qu'est-ce que l'insertion professionnelle ?",options:["Trouver un premier emploi uniquement","L'ensemble des processus permettant d'accéder ou de se maintenir dans l'emploi","Une aide financière de l'État","Un type de contrat de travail"]},
@@ -608,13 +574,50 @@ let ordreOptions      = {};   // ordre d'affichage tiré au sort, par question
 // ══════════════════════════════════════════════
 // INIT : grille de formations
 // ══════════════════════════════════════════════
+/* ── Les communes, groupées par antenne ───────────────────────────────────
+   La liste vient d'antennes.js : une seule source, partagée avec la vitrine
+   et l'application alternance. Le candidat choisit sa commune, l'antenne en
+   découle — il n'a pas à savoir comment nous sommes organisés.              */
+function initCommunes() {
+  var sel = document.getElementById('commune');
+  var info = document.getElementById('communeInfo');
+  if (!sel || !window.JTCF_ANTENNES) return;
+
+  JTCF_ANTENNES.liste().forEach(function (a) {
+    var grp = document.createElement('optgroup');
+    grp.label = a.libelle;
+    JTCF_ANTENNES.communes(a.id).forEach(function (c) {
+      var o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      grp.appendChild(o);
+    });
+    sel.appendChild(grp);
+  });
+
+  var autre = document.createElement('option');
+  autre.value = 'Hors de La Réunion';
+  autre.textContent = 'Je n\'habite pas à La Réunion';
+  sel.appendChild(autre);
+
+  sel.addEventListener('change', function () {
+    if (!sel.value) { info.style.display = 'none'; return; }
+    var a = JTCF_ANTENNES.get(JTCF_ANTENNES.antenneDe(sel.value));
+    if (!a) { info.style.display = 'none'; return; }
+    info.style.display = 'block';
+    info.innerHTML = a.ouvert
+      ? 'Votre dossier sera suivi par <strong>' + a.nom + '</strong> — ' + a.ville + '.'
+      : '<strong>' + a.nom + '</strong> ouvre prochainement. '
+        + 'En attendant, votre dossier sera suivi depuis Saint-Joseph.';
+  });
+}
+
 function initGrid() {
   const grid = document.getElementById('formationGrid');
   FORMATIONS.forEach(f => {
     const card = document.createElement('div');
-    card.className = 'formation-card ' + f.classe;
+    card.className = 'formation-card';
     card.dataset.id = f.id;
-    card.innerHTML = `<div class="domaine">${f.domaine}</div><div class="nom">${f.nom}</div>`;
+    card.innerHTML = `<div class="domaine ${f.classe}">${f.domaine}</div><div class="nom">${f.nom}</div>`;
     card.addEventListener('click', () => {
       document.querySelectorAll('.formation-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
@@ -649,6 +652,12 @@ function demarrerTest() {
   if (!email) {
     alert('Veuillez renseigner votre adresse email.');
     document.getElementById('email').focus();
+    return;
+  }
+  const commune = document.getElementById('commune').value;
+  if (!commune) {
+    alert('Veuillez indiquer votre commune : elle détermine l\'antenne qui vous suivra.');
+    document.getElementById('commune').focus();
     return;
   }
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -780,6 +789,24 @@ function updateProgress() {
 // ══════════════════════════════════════════════
 // SOUMETTRE
 // ══════════════════════════════════════════════
+/* L'antenne qui suivra ce candidat. Tant que le Nord n'est pas ouvert,
+   tout revient au Sud — mais le secteur réel reste enregistré, pour qu'on
+   puisse reprendre les dossiers le jour de l'ouverture.                    */
+function antenneChoisie() {
+  var commune = document.getElementById('commune').value || '';
+  var id = window.JTCF_ANTENNES ? JTCF_ANTENNES.antenneDe(commune) : 'sud';
+  var a = window.JTCF_ANTENNES ? JTCF_ANTENNES.get(id) : null;
+  if (!a) return { id: 'sud', nom: 'JTCF Sud', courriel: 'contact@tbrgroup.fr', ouvert: true };
+  return {
+    id: id,
+    nom: a.nom,
+    ville: a.ville,
+    ouvert: a.ouvert,
+    // Une antenne pas encore ouverte : les résultats arrivent chez Alexandre.
+    courriel: a.ouvert ? a.courriel : 'contact@tbrgroup.fr'
+  };
+}
+
 function soumettre() {
   const nom    = document.getElementById('nom').value.trim();
   const prenom = document.getElementById('prenom').value.trim();
@@ -793,6 +820,8 @@ function soumettre() {
   lignes.push(`TEL : ${document.getElementById('tel').value || 'Non renseigné'}`);
   lignes.push(`EMAIL : ${document.getElementById('email').value || 'Non renseigné'}`);
   lignes.push(`NIVEAU : ${document.getElementById('niveau').value || 'Non renseigné'}`);
+  lignes.push(`COMMUNE : ${document.getElementById('commune').value || 'Non renseignée'}`);
+  lignes.push(`ANTENNE : ${antenneChoisie().nom}`);
   lignes.push('---');
   currentQuestions.forEach((q, i) => {
     lignes.push(`Q${i+1} [${q.type.toUpperCase()}] : ${q.texte}`);
@@ -823,12 +852,24 @@ function soumettre() {
     tel       : document.getElementById('tel').value || '',
     email     : document.getElementById('email').value || '',
     niveau    : document.getElementById('niveau').value || '',
+    commune   : document.getElementById('commune').value || '',
+    secteur   : antenneChoisie().id,
+    antenne   : antenneChoisie().nom,
+    courriel  : antenneChoisie().courriel,
     reponses  : texteComplet
   };
 
   // Afficher la confirmation immédiatement
   document.getElementById('successNom').textContent = `${prenom} ${nom}`;
   document.getElementById('successFormation').textContent = selectedFormation.nom;
+  var a = antenneChoisie();
+  document.getElementById('successAntenne').innerHTML =
+    a.ouvert
+      ? 'Votre dossier est transmis à <strong>' + a.nom + '</strong>'
+        + (a.ville ? ' — ' + a.ville : '') + '. Un conseiller analysera vos réponses '
+        + 'et vous contactera prochainement.'
+      : '<strong>' + a.nom + '</strong> ouvre prochainement. En attendant, votre dossier '
+        + 'est suivi depuis Saint-Joseph : un conseiller vous contactera.';
   showScreen('screenSucces');
   setStep(3);
 
@@ -878,6 +919,7 @@ function recommencer() {
 // BOOT
 // ══════════════════════════════════════════════
 initGrid();
+initCommunes();
 </script>
 </body>
 </html>
