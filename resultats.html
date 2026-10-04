@@ -198,6 +198,11 @@
     <select class="filtre-select" id="filtreFormation" onchange="filtrer()">
       <option value="">Toutes les formations</option>
     </select>
+    <select class="filtre-select" id="filtreAntenne" onchange="choisirAntenne()">
+      <option value="">Toutes les antennes</option>
+      <option value="JTCF Sud">JTCF Sud</option>
+      <option value="JTCF Nord">JTCF Nord</option>
+    </select>
     <select class="filtre-select" id="filtrePeriode" onchange="filtrer()">
       <option value="">Toute période</option>
       <option value="7">7 derniers jours</option>
@@ -470,10 +475,31 @@ function peuplerFiltreFormation() {
   });
 }
 
+// ── ANTENNE ───────────────────────────────────────────────────
+// Un test sans antenne (passé avant le 29/09/2026) est réputé du Sud.
+function antenneDe(r) {
+  return String(r.antenne || '').trim() || 'JTCF Sud';
+}
+
+// Le choix est retenu sur cet ordinateur d'une visite à l'autre.
+function choisirAntenne() {
+  try { localStorage.setItem('jtcf_antenne', document.getElementById('filtreAntenne').value); } catch(e) {}
+  filtrer();
+}
+
+(function restaurerAntenne() {
+  try {
+    const v = localStorage.getItem('jtcf_antenne');
+    if (v !== null) document.getElementById('filtreAntenne').value = v;
+  } catch(e) {}
+})();
+
 function filtrer() {
   const form = document.getElementById('filtreFormation').value;
+  const ant  = document.getElementById('filtreAntenne').value;
   const jours = parseInt(document.getElementById('filtrePeriode').value) || 0;
   resultatsAffiches = tousResultats.filter(r => {
+    if (ant && antenneDe(r) !== ant) return false;
     if (form && r.formation !== form) return false;
     if (jours) {
       const d = parseDate(r.date);
