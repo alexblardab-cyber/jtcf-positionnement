@@ -780,7 +780,7 @@ async function genererPDF() {
   // Pied de page
   doc.setFillColor(...BF); doc.rect(0,280,210,17,'F');
   doc.setTextColor(...BLANC); doc.setFontSize(8);
-  doc.text('JTCF · 20a rue du Général Lambert · 97480 Saint-Joseph · contact@tbrgroup.fr', 20, 291);
+  doc.text('JTCF · 13 rue du Général Lambert · 97480 Saint-Joseph · contact@tbrgroup.fr', 20, 291);
   doc.text('Généré le ' + new Date().toLocaleDateString('fr-FR'), 190, 291, {align:'right'});
 
   doc.save('JTCF_Positionnement_' + r.prenom + '_' + r.nom + '.pdf');
